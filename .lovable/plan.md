@@ -1,35 +1,24 @@
-# Fix: ElevenLabs phnum órfão travando discagem
+# Integrações independentes e opcionais
 
-## Problema
+## Objetivo
+Permitir que cada integração seja ativada separadamente. A ausência de credenciais não bloqueia o painel nem recursos que não dependem daquela integração.
 
-O número `+18159498468` tem `elevenlabs_phone_number_id = phnum_5801kq5t6vgxfjtbj4kpf7kt3z3v` salvo no banco, mas o ElevenLabs responde **404 document_not_found** — o número foi removido do workspace EL (ou a API key trocou). Toda discagem via essa rota cai em 502.
+## Alterações
+- Trocar o fluxo inicial obrigatório por configuração opcional: cada provedor poderá ser pulado e configurado depois em **Configurações → Integrações**.
+- Exibir estados distintos e reais em cada integração:
+  - **Não configurada** quando faltarem credenciais;
+  - **Com problema** quando houver credenciais, mas a verificação falhar;
+  - **Conectada** somente após uma verificação bem-sucedida no serviço externo.
+- Manter o painel carregando mesmo quando uma ou várias integrações estiverem ausentes ou indisponíveis.
+- Desativar ações dependentes no local de uso, com indicação da integração necessária. Por exemplo, comprar/importar números e fazer ligações exigem Twilio; clonagem e ativação de voz nativa exigem ElevenLabs.
+- Manter as ações de configuração disponíveis para que uma integração ausente possa ser conectada individualmente.
+- Ajustar a prontidão geral para não tratar integrações opcionais como bloqueio global.
+- Remover qualquer aparência de conexão baseada apenas na existência de uma chave; a resposta confirmada do provedor será a fonte do estado “Conectada”.
 
-## Solução (2 partes, faço as duas)
+## Próxima configuração
+Como a tela atual é **Números de telefone**, começar pela **Twilio**. Solicitar somente `TWILIO_ACCOUNT_SID` e `TWILIO_AUTH_TOKEN` no formulário da própria integração; nenhuma outra credencial será pedida agora.
 
-### 1. Migration: limpar o ID órfão agora
-
-```sql
-UPDATE phone_numbers
-SET elevenlabs_phone_number_id = NULL
-WHERE elevenlabs_phone_number_id = 'phnum_5801kq5t6vgxfjtbj4kpf7kt3z3v';
-```
-
-Depois disso, a discagem cai automaticamente na rota Twilio direta (`voice-outbound`) porque `placeCall()` em `src/lib/voice.ts` decide a rota com base nesse campo.
-
-### 2. Self-healing em `elevenlabs-outbound-call/index.ts`
-
-Quando o EL devolver `404` com `code: "document_not_found"`:
-- Limpa o `elevenlabs_phone_number_id` no banco (pra não travar a próxima ligação).
-- Faz fallback automático pra `voice-outbound` (Twilio direto), que já existe e é chamado em outros caminhos de erro 5xx.
-- Retorna `via: "twilio_fallback"` com `reason: "elevenlabs_phone_not_registered"` pra UI mostrar toast claro.
-
-## Reativar a IA do EL depois
-
-Quando quiser voltar a usar a integração nativa do EL nesse número, vai em **/phone-numbers** → botão **"Ativar IA do ElevenLabs"** — ele chama `elevenlabs-phone-register` que registra novo `phnum_...` e salva no banco.
-
-## Arquivos tocados
-
-- **migration nova** — UPDATE do phone_numbers
-- **`supabase/functions/elevenlabs-outbound-call/index.ts`** — detectar 404 document_not_found, limpar ID, fallback Twilio
-
-Sem mudanças em UI nem em outros lugares.
+## Validação
+- Conferir os estados sem credenciais, com credenciais inválidas e com credenciais válidas.
+- Confirmar que o restante do painel permanece utilizável sem integrações configuradas.
+- Confirmar que ações dependentes ficam desativadas e voltam a funcionar após conexão verificada.

@@ -1072,31 +1072,15 @@ function NumberBuyWizard({
 function VoiceCallDetailSheet({
   call,
   onClose,
-  onRetry,
 }: {
   call: any | null;
   onClose: () => void;
   onRetry: () => void;
 }) {
-  const [retrying, setRetrying] = useState(false);
   if (!call) return null;
 
   const utterances = Array.isArray(call.transcript) ? (call.transcript as any[]) : [];
   const status = call.transcription_status ?? "idle";
-
-  const handleRetry = async () => {
-    setRetrying(true);
-    try {
-      const { retryTranscription } = await import("@/lib/twilio");
-      await retryTranscription(call.id);
-      toast.success("Transcrição enfileirada");
-      onRetry();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao retentar");
-    } finally {
-      setRetrying(false);
-    }
-  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -1119,15 +1103,10 @@ function VoiceCallDetailSheet({
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Transcrição ({status})
               </Label>
-              {call.recording_storage_path && status !== "processing" && (
-                <Button size="sm" variant="ghost" onClick={handleRetry} disabled={retrying}>
-                  {retrying ? "…" : status === "done" ? "Re-transcrever" : "Transcrever"}
-                </Button>
-              )}
             </div>
             {utterances.length === 0 ? (
               <p className="rounded-md border border-dashed border-white/[0.1] p-3 text-center text-xs text-muted-foreground">
-                {status === "failed" ? call.transcription_error ?? "falha" : "sem transcrição ainda"}
+                {status === "failed" ? call.transcription_error ?? "falha" : "Transcrição não configurada"}
               </p>
             ) : (
               <div className="max-h-80 space-y-2 overflow-y-auto rounded-md border border-white/[0.06] bg-white/[0.01] p-3">

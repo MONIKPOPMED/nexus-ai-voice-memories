@@ -42,8 +42,9 @@ Deno.serve(async (req) => {
     const input = await req.json();
     const accountId: string | undefined = input.account_id;
     const phoneNumber: string | undefined = input.phone_number;
-    if (!accountId || !phoneNumber) {
-      return j({ error: "account_id and phone_number required" }, 400);
+    if (!accountId) return j({ error: "account_id required" }, 400);
+    if (input.action !== "configure_twiml_app" && !phoneNumber) {
+      return j({ error: "phone_number required" }, 400);
     }
 
     const { data: role } = await admin
@@ -114,6 +115,7 @@ Deno.serve(async (req) => {
     }
 
     // 1. Find the number on Twilio — it must already be in the account.
+    if (!phoneNumber) return j({ error: "phone_number required" }, 400);
     const listRes = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`,
       { headers: { Authorization: twauth } },

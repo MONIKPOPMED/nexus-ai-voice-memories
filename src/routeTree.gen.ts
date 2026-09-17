@@ -27,7 +27,6 @@ import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/c
 import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedAcordosRouteImport } from './routes/_authenticated/acordos'
-import { Route as ApiPublicTwilioBiaDialRouteImport } from './routes/api/public/twilio/bia-dial'
 import { Route as ApiPublicHooksVoiceCallsFinalizePendingRouteImport } from './routes/api/public/hooks/voice-calls-finalize-pending'
 import { Route as ApiPublicHooksDebtorsAutoSyncRouteImport } from './routes/api/public/hooks/debtors-auto-sync'
 
@@ -123,11 +122,6 @@ const AuthenticatedAcordosRoute = AuthenticatedAcordosRouteImport.update({
   path: '/acordos',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const ApiPublicTwilioBiaDialRoute = ApiPublicTwilioBiaDialRouteImport.update({
-  id: '/api/public/twilio/bia-dial',
-  path: '/api/public/twilio/bia-dial',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicHooksVoiceCallsFinalizePendingRoute =
   ApiPublicHooksVoiceCallsFinalizePendingRouteImport.update({
     id: '/api/public/hooks/voice-calls-finalize-pending',
@@ -161,7 +155,6 @@ export interface FileRoutesByFullPath {
   '/voice-campaigns': typeof AuthenticatedVoiceCampaignsRoute
   '/api/public/hooks/debtors-auto-sync': typeof ApiPublicHooksDebtorsAutoSyncRoute
   '/api/public/hooks/voice-calls-finalize-pending': typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
-  '/api/public/twilio/bia-dial': typeof ApiPublicTwilioBiaDialRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -183,7 +176,6 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/api/public/hooks/debtors-auto-sync': typeof ApiPublicHooksDebtorsAutoSyncRoute
   '/api/public/hooks/voice-calls-finalize-pending': typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
-  '/api/public/twilio/bia-dial': typeof ApiPublicTwilioBiaDialRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -207,7 +199,6 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/hooks/debtors-auto-sync': typeof ApiPublicHooksDebtorsAutoSyncRoute
   '/api/public/hooks/voice-calls-finalize-pending': typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
-  '/api/public/twilio/bia-dial': typeof ApiPublicTwilioBiaDialRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -231,7 +222,6 @@ export interface FileRouteTypes {
     | '/voice-campaigns'
     | '/api/public/hooks/debtors-auto-sync'
     | '/api/public/hooks/voice-calls-finalize-pending'
-    | '/api/public/twilio/bia-dial'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -253,7 +243,6 @@ export interface FileRouteTypes {
     | '/'
     | '/api/public/hooks/debtors-auto-sync'
     | '/api/public/hooks/voice-calls-finalize-pending'
-    | '/api/public/twilio/bia-dial'
   id:
     | '__root__'
     | '/_authenticated'
@@ -276,7 +265,6 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/api/public/hooks/debtors-auto-sync'
     | '/api/public/hooks/voice-calls-finalize-pending'
-    | '/api/public/twilio/bia-dial'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -288,7 +276,6 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiPublicHooksDebtorsAutoSyncRoute: typeof ApiPublicHooksDebtorsAutoSyncRoute
   ApiPublicHooksVoiceCallsFinalizePendingRoute: typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
-  ApiPublicTwilioBiaDialRoute: typeof ApiPublicTwilioBiaDialRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -419,13 +406,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAcordosRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/api/public/twilio/bia-dial': {
-      id: '/api/public/twilio/bia-dial'
-      path: '/api/public/twilio/bia-dial'
-      fullPath: '/api/public/twilio/bia-dial'
-      preLoaderRoute: typeof ApiPublicTwilioBiaDialRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/hooks/voice-calls-finalize-pending': {
       id: '/api/public/hooks/voice-calls-finalize-pending'
       path: '/api/public/hooks/voice-calls-finalize-pending'
@@ -487,7 +467,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksDebtorsAutoSyncRoute: ApiPublicHooksDebtorsAutoSyncRoute,
   ApiPublicHooksVoiceCallsFinalizePendingRoute:
     ApiPublicHooksVoiceCallsFinalizePendingRoute,
-  ApiPublicTwilioBiaDialRoute: ApiPublicTwilioBiaDialRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

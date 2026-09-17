@@ -4,7 +4,8 @@
 //
 // We download the MP3 rendition into our `voice-recordings` bucket, patch
 // the voice_calls row with `recording_storage_path` + mark transcription
-// as pending, then fire-and-forget invoke `transcribe-voice` to run Deepgram.
+// Recording is persisted for playback. Transcription is optional and is not
+// triggered unless a transcription provider is explicitly enabled later.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 import {
@@ -96,21 +97,10 @@ Deno.serve(async (req) => {
     if (stored) {
       updates.recording_storage_path = stored.storagePath;
       updates.recording_url = stored.signedUrl ?? null;
-      updates.transcription_status = "pending";
+      updates.transcription_status = "idle";
     }
 
     await admin.from("voice_calls").update(updates).eq("id", call.id);
-
-    // Fire-and-forget transcription
-    if (stored) {
-      try {
-        await admin.functions.invoke("transcribe-voice", {
-          body: { voice_call_id: call.id },
-        });
-      } catch (err) {
-        console.warn("[twilio-recording-callback] transcribe invoke failed", err);
-      }
-    }
 
     return new Response("ok", { headers: corsHeaders });
   } catch (err) {

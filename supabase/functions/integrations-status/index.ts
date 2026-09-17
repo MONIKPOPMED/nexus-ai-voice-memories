@@ -51,7 +51,13 @@ Deno.serve(async (req) => {
     checkElevenLabs(admin, body.account_id),
     checkTwilio(admin, body.account_id),
     checkEvolution(admin, body.account_id),
-    checkDeepgram(admin, body.account_id),
+    Promise.resolve({
+      key: "deepgram",
+      label: "Deepgram (transcrição)",
+      configured: false,
+      ok: null,
+      detail: "Não configurada",
+    } satisfies ProviderStatus),
   ]);
 
   // Nexus-specific readiness: has an agent? has a number? IA ativada?
@@ -159,38 +165,6 @@ async function checkTwilio(admin: any, accountId: string): Promise<ProviderStatu
     };
   } catch (err) {
     return { key: "twilio", label: "Twilio", configured: true, ok: false, detail: String(err).slice(0, 120) };
-  }
-}
-
-async function checkDeepgram(admin: any, accountId: string): Promise<ProviderStatus> {
-  const key = await resolveSecret(admin, {
-    accountId,
-    provider: "deepgram",
-    keyName: "api_key",
-    envVar: "DEEPGRAM_API_KEY",
-    noCache: true,
-  });
-  if (!key) return { key: "deepgram", label: "Deepgram (transcrição)", configured: false, ok: null };
-  try {
-    // /v1/projects requires a valid key; returns 401 if invalid.
-    const res = await fetch("https://api.deepgram.com/v1/projects", {
-      headers: { Authorization: `Token ${key}` },
-    });
-    if (!res.ok) {
-      return { key: "deepgram", label: "Deepgram (transcrição)", configured: true, ok: false, detail: `HTTP ${res.status}` };
-    }
-    const body = await res.json().catch(() => ({})) as any;
-    const projects = Array.isArray(body?.projects) ? body.projects.length : 0;
-    return {
-      key: "deepgram",
-      label: "Deepgram (transcrição)",
-      configured: true,
-      ok: true,
-      detail: `${projects} projeto${projects === 1 ? "" : "s"} acessível${projects === 1 ? "" : "s"}`,
-      usage: { projetos: projects },
-    };
-  } catch (err) {
-    return { key: "deepgram", label: "Deepgram", configured: true, ok: false, detail: String(err).slice(0, 120) };
   }
 }
 

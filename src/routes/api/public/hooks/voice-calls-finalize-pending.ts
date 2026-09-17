@@ -86,10 +86,8 @@ export const Route = createFileRoute("/api/public/hooks/voice-calls-finalize-pen
           .select("id, account_id, status, source_id, recording_storage_path, transcription_status, collection_outcome, started_at")
           .eq("status", "completed")
           .or(
-            // EL sem transcript OU Twilio com áudio mas sem transcrição OU
-            // qualquer call já transcrita mas sem outcome (extração nunca rodou).
+            // EL sem transcript OU qualquer call já transcrita mas sem outcome.
             "and(source_id.not.is.null,transcription_status.neq.done)," +
-              "and(source_id.is.null,recording_storage_path.not.is.null,transcription_status.neq.done)," +
               "and(transcription_status.eq.done,collection_outcome.is.null)",
           )
           .gte("started_at", minIso)
@@ -115,14 +113,11 @@ export const Route = createFileRoute("/api/public/hooks/voice-calls-finalize-pen
 
         for (const c of unique) {
           // Decide qual pipeline rodar pra este registro
-          let fnName: "voice-call-finalize" | "transcribe-voice" | "collection-extract-arrangement" | "noop" = "noop";
+          let fnName: "voice-call-finalize" | "collection-extract-arrangement" | "noop" = "noop";
 
           if (c.source_id) {
             // ElevenLabs — sempre passa pelo finalize (busca transcript+áudio+extrai)
             fnName = "voice-call-finalize";
-          } else if (c.recording_storage_path && c.transcription_status !== "done") {
-            // Twilio puro com áudio gravado, ainda não transcrito
-            fnName = "transcribe-voice";
           } else if (c.transcription_status === "done" && !(c as any).collection_outcome) {
             // Já transcrito mas extração nunca rodou
             fnName = "collection-extract-arrangement";
@@ -144,8 +139,6 @@ export const Route = createFileRoute("/api/public/hooks/voice-calls-finalize-pen
                 ? "skipped"
                 : fnName === "voice-call-finalize"
                 ? `finalized:${d?.transcript_messages ?? 0}msgs${d?.extract?.arrangement_id ? "+arr" : ""}`
-                : fnName === "transcribe-voice"
-                ? `transcribed:${d?.utterances ?? 0}utt`
                 : `extracted${d?.arrangement_id ? ":+arr" : ""}`;
               results.push({ id: c.id, ok: true, route: fnName, reason });
             }

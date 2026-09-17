@@ -72,23 +72,8 @@ Deno.serve(async (req) => {
 
     if (error) console.error("[twilio-status] update error", error);
 
-    // If Twilio delivered a RecordingUrl inline (older config paths may not
-    // use RecordingStatusCallback), schedule transcription the same way the
-    // recording callback does.
-    if (
-      updated &&
-      recordingUrl &&
-      !updated.recording_storage_path &&
-      updated.transcription_status === "idle"
-    ) {
-      await supabase
-        .from("voice_calls")
-        .update({ transcription_status: "pending" })
-        .eq("id", updated.id);
-    }
-
     // Quando a chamada termina (qualquer terminal status), dispara o
-    // pipeline correto — não espera o cron de 1min.
+    // pipeline ElevenLabs — não espera o cron de 1min.
     // Fire-and-forget: não bloqueia a resposta ao Twilio.
     const isTerminal =
       mapped === "completed" || mapped === "no_answer" || mapped === "busy" || mapped === "canceled";
@@ -107,21 +92,9 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({ voice_call_id: updated.id }),
         }).catch((err) => console.warn("[twilio-status] finalize trigger failed", err));
-      } else if (updated.recording_storage_path && updated.transcription_status !== "done") {
-        // Caminho Twilio puro: recording já chegou (RecordingStatusCallback
-        // veio antes deste status). Dispara transcrição agora; ela própria
-        // encadeia a extração de acordo.
-        fetch(`${baseUrl}/functions/v1/transcribe-voice`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${key}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ voice_call_id: updated.id }),
-        }).catch((err) => console.warn("[twilio-status] transcribe trigger failed", err));
       }
-      // Caso contrário (Twilio puro sem áudio ainda): não faz nada — o
-      // RecordingStatusCallback chegará em segundos e dispara o restante.
+      // Chamadas Twilio puras mantêm a gravação disponível, sem enviar áudio
+      // ao Deepgram enquanto essa integração estiver desativada.
     }
 
     return new Response("ok", { headers: corsHeaders });

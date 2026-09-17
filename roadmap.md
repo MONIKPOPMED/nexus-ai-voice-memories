@@ -3,6 +3,7 @@
 - [x] Criar endpoint TwiML e preencher a URL de solicitação do app TwiML “Bia - cobrança”
 - [x] Tornar o destino do TwiML App dinâmico usando o parâmetro `To` de cada ligação
 - [x] Desativar chamadas ao Deepgram enquanto a integração não estiver em uso
+- [x] Unificar discagem e cancelamento nas credenciais Twilio verificadas da conta
 - [ ] Permitir configurar cada integração separadamente, sem bloquear o painel
 - [ ] Mostrar integrações sem credenciais como “Não configurada” e desativar suas ações
 - [ ] Verificar conexão antes de exibir uma integração como conectada

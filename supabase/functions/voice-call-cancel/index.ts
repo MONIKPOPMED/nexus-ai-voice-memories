@@ -9,6 +9,7 @@
 // Auth: requires JWT (member of account).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
+import { loadAccountTwilioCreds, twilioRequest } from "../_shared/twilio/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,35 +82,29 @@ Deno.serve(async (req) => {
     if (!member) return j({ ok: false, error: "forbidden" }, 403);
   }
 
-  const TWILIO_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-  const TWILIO_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
   const EL_KEY = Deno.env.get("ELEVENLABS_API_KEY");
+  const twilioCredsByAccount = new Map<string, Awaited<ReturnType<typeof loadAccountTwilioCreds>>>();
 
   let canceled = 0;
   const errors: string[] = [];
 
   for (const call of (calls ?? []) as any[]) {
     // 1. Twilio cancel
-    if (call.provider_call_sid && TWILIO_SID && TWILIO_TOKEN) {
+    if (call.provider_call_sid) {
       try {
-        const auth = btoa(`${TWILIO_SID}:${TWILIO_TOKEN}`);
-        const res = await fetch(
-          `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Calls/${call.provider_call_sid}.json`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${auth}`,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({ Status: "completed" }).toString(),
-          },
-        );
-        if (!res.ok) {
-          const t = await res.text();
-          errors.push(`twilio ${call.provider_call_sid}: ${res.status} ${t.slice(0, 100)}`);
+        let creds = twilioCredsByAccount.get(call.account_id);
+        if (!creds) {
+          creds = await loadAccountTwilioCreds(admin, call.account_id);
+          twilioCredsByAccount.set(call.account_id, creds);
         }
+        await twilioRequest({
+          method: "POST",
+          path: `/2010-04-01/Accounts/${creds.accountSid}/Calls/${call.provider_call_sid}.json`,
+          credentials: creds,
+          form: { Status: "completed" },
+        });
       } catch (e: any) {
-        errors.push(`twilio exception: ${e?.message ?? e}`);
+        errors.push(`twilio ${call.provider_call_sid}: ${e?.message ?? e}`);
       }
     }
 

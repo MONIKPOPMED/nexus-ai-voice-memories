@@ -4,6 +4,12 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 import { guardCall, logAttempt } from "../_shared/voice/guard.ts";
+import {
+  loadPhoneNumberCreds,
+  twilioRequest,
+  TwilioConfigError,
+  TwilioError,
+} from "../_shared/twilio/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,9 +37,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -130,7 +133,11 @@ Deno.serve(async (req) => {
       callId = call.id;
     }
 
-    if (!twilioSid || !twilioToken) {
+    let twilioCreds;
+    try {
+      const loaded = await loadPhoneNumberCreds(supabase, phoneNumber.id);
+      twilioCreds = loaded.creds;
+    } catch (error) {
       await supabase
         .from("voice_calls")
         .update({ status: "failed", metadata: { reason: "twilio_not_configured" } })
@@ -141,13 +148,15 @@ Deno.serve(async (req) => {
         voiceCallId: callId,
         outcome: "failed:twilio_not_configured",
       });
+      const message = error instanceof TwilioConfigError
+        ? error.message
+        : "Não foi possível carregar as credenciais Twilio desta conta.";
       return j({
         callId,
         status: "failed",
         reason: "twilio_not_configured",
-        message:
-          "Configure TWILIO_ACCOUNT_SID e TWILIO_AUTH_TOKEN para ativar discagem.",
-      });
+        message,
+      }, error instanceof TwilioConfigError ? error.status : 500);
     }
 
     // Twilio: webhook URL aponta para nossa edge function twilio-incoming
@@ -155,7 +164,6 @@ Deno.serve(async (req) => {
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-status`;
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/twilio-recording-callback`;
 
-    const auth = btoa(`${twilioSid}:${twilioToken}`);
     const form = new URLSearchParams({
       To: toE164,
       From: phoneNumber.e164,
@@ -171,29 +179,25 @@ Deno.serve(async (req) => {
       RecordingChannels: "dual",
     });
 
-    const tw = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls.json`,
-      {
+    let twData: any;
+    try {
+      twData = await twilioRequest({
         method: "POST",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: form,
-      },
-    );
-    const twData = await tw.json();
-
-    if (!tw.ok) {
+        path: `/2010-04-01/Accounts/${twilioCreds.accountSid}/Calls.json`,
+        credentials: twilioCreds,
+        form: Object.fromEntries(form.entries()),
+      });
+    } catch (error) {
+      const details = error instanceof TwilioError ? error.details : { message: String(error) };
       await supabase
         .from("voice_calls")
-        .update({ status: "failed", metadata: twData })
+        .update({ status: "failed", metadata: details })
         .eq("id", callId);
 
-      const twilioCode = typeof twData?.code === "number" ? twData.code : null;
+      const twilioCode = error instanceof TwilioError ? error.code ?? null : null;
       const userMessage = twilioCode === 21219
         ? "Número de destino não verificado. Contas Trial da Twilio só podem ligar pra números verificados."
-        : (twData?.message ?? "Twilio recusou a ligação.");
+        : (error instanceof Error ? error.message : "Twilio recusou a ligação.");
       const reason = twilioCode === 21219
         ? "twilio_trial_unverified_number"
         : "twilio_call_failed";
@@ -210,8 +214,8 @@ Deno.serve(async (req) => {
         status: "failed",
         reason,
         message: userMessage,
-        error: twData,
-      });
+        error: details,
+      }, error instanceof TwilioError ? error.status : 500);
     }
 
     await supabase

@@ -25,15 +25,6 @@ export interface TwilioChannelConfig {
   credentials: TwilioCredentials;
 }
 
-function credentialsFromConfig(cfg: Record<string, any>): TwilioCredentials {
-  return {
-    accountSid: cfg.twilio_account_sid ?? Deno.env.get("TWILIO_ACCOUNT_SID") ?? "",
-    authToken: cfg.twilio_auth_token ?? Deno.env.get("TWILIO_AUTH_TOKEN") ?? undefined,
-    apiKey: cfg.twilio_api_key ?? Deno.env.get("TWILIO_API_KEY") ?? undefined,
-    apiSecret: cfg.twilio_api_secret ?? Deno.env.get("TWILIO_API_SECRET") ?? undefined,
-  };
-}
-
 /**
  * Load an SMS channel's Twilio creds + sending number or messaging service SID.
  */
@@ -52,7 +43,7 @@ export async function loadSmsChannelConfig(
   if (!data.enabled) throw new TwilioConfigError("channel disabled", 409);
 
   const cfg = (data.config ?? {}) as Record<string, any>;
-  const creds = credentialsFromConfig(cfg);
+  const creds = await resolveTwilioCredentials(admin, data.account_id, cfg);
   if (!creds.accountSid) throw new TwilioConfigError("twilio_account_sid not configured", 409);
   if (!creds.authToken && (!creds.apiKey || !creds.apiSecret)) {
     throw new TwilioConfigError("twilio auth (token or api key+secret) not configured", 409);
@@ -86,7 +77,7 @@ export async function loadPhoneNumberCreds(
   if (!data.enabled) throw new TwilioConfigError("phone_number disabled", 409);
 
   const cfg = (data.provider_config ?? {}) as Record<string, any>;
-  const creds = credentialsFromConfig(cfg);
+  const creds = await resolveTwilioCredentials(admin, data.account_id, cfg);
   if (!creds.accountSid) throw new TwilioConfigError("twilio_account_sid not configured", 409);
 
   return {
@@ -147,14 +138,22 @@ export async function loadAccountTwilioCreds(
   admin: SupabaseClient,
   accountId: string,
 ): Promise<TwilioCredentials> {
+  return resolveTwilioCredentials(admin, accountId, {});
+}
+
+async function resolveTwilioCredentials(
+  admin: SupabaseClient,
+  accountId: string,
+  cfg: Record<string, any>,
+): Promise<TwilioCredentials> {
   const bundle = await resolveSecretsBulk(admin, {
     accountId,
     provider: "twilio",
     keys: [
-      { keyName: "account_sid", envVar: "TWILIO_ACCOUNT_SID" },
-      { keyName: "auth_token",  envVar: "TWILIO_AUTH_TOKEN" },
-      { keyName: "api_key",     envVar: "TWILIO_API_KEY" },
-      { keyName: "api_secret",  envVar: "TWILIO_API_SECRET" },
+      { keyName: "account_sid", configValue: cfg.twilio_account_sid, envVar: "TWILIO_ACCOUNT_SID" },
+      { keyName: "auth_token", configValue: cfg.twilio_auth_token, envVar: "TWILIO_AUTH_TOKEN" },
+      { keyName: "api_key", configValue: cfg.twilio_api_key, envVar: "TWILIO_API_KEY" },
+      { keyName: "api_secret", configValue: cfg.twilio_api_secret, envVar: "TWILIO_API_SECRET" },
     ],
   });
 

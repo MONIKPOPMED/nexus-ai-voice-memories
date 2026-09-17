@@ -1,5 +1,5 @@
 // TwiML served to Twilio after voice-escalate redirects the call.
-// ?mode=transfer&to=+15551234567 → <Dial> that number
+// ?mode=transfer&to=+15551234567&caller_id=+15557654321 → <Dial> that number
 // ?mode=voicemail                → <Say><Record>
 
 const corsHeaders = {
@@ -29,6 +29,7 @@ Deno.serve((req) => {
 
   if (mode === "transfer") {
     const to = url.searchParams.get("to") ?? "";
+    const callerId = url.searchParams.get("caller_id") ?? "";
     if (!to) {
       return xml(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -39,11 +40,9 @@ Deno.serve((req) => {
     }
     return xml(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="pt-BR">Transferindo sua ligação para um atendente.</Say>
-  <Dial timeout="30" answerOnBridge="true">${escapeXml(to)}</Dial>
-  <Say language="pt-BR">Nao foi possivel completar a transferencia. Deixe uma mensagem.</Say>
-  <Record maxLength="120" playBeep="true"/>
-  <Hangup/>
+  <Dial${callerId ? ` callerId="${escapeXml(callerId)}"` : ""}>
+    <Number>${escapeXml(to)}</Number>
+  </Dial>
 </Response>`);
   }
 

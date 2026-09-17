@@ -42,8 +42,9 @@ Deno.serve(async (req) => {
     const input = await req.json();
     const accountId: string | undefined = input.account_id;
     const phoneNumber: string | undefined = input.phone_number;
-    if (!accountId || !phoneNumber) {
-      return j({ error: "account_id and phone_number required" }, 400);
+    if (!accountId) return j({ error: "account_id required" }, 400);
+    if (input.action !== "configure_twiml_app" && !phoneNumber) {
+      return j({ error: "phone_number required" }, 400);
     }
 
     const { data: role } = await admin
@@ -65,7 +66,56 @@ Deno.serve(async (req) => {
     const creds = await loadAccountTwilioCreds(admin, accountId);
     const twauth = `Basic ${btoa(`${creds.apiKey ?? creds.accountSid}:${creds.apiSecret ?? creds.authToken}`)}`;
 
+    // Configure an existing TwiML App without requiring the user to open the
+    // Twilio console. This is intentionally admin-only and uses account Vault
+    // credentials resolved above.
+    if (input.action === "configure_twiml_app") {
+      const friendlyName = String(input.friendly_name ?? "").trim();
+      const voiceUrl = String(input.voice_url ?? "").trim();
+      if (!friendlyName || !voiceUrl) {
+        return j({ error: "friendly_name and voice_url required" }, 400);
+      }
+
+      const appsRes = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/Applications.json?FriendlyName=${encodeURIComponent(friendlyName)}&PageSize=20`,
+        { headers: { Authorization: twauth } },
+      );
+      const appsText = await appsRes.text();
+      if (!appsRes.ok) {
+        return j({ error: `Twilio app lookup failed: ${appsRes.status} ${appsText.slice(0, 200)}` }, 502);
+      }
+      const appsPayload = JSON.parse(appsText) as { applications?: Array<{ sid: string; friendly_name: string }> };
+      const app = (appsPayload.applications ?? []).find((candidate) => candidate.friendly_name === friendlyName);
+      if (!app) return j({ error: `TwiML App ${friendlyName} not found` }, 404);
+
+      const updateRes = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/Applications/${app.sid}.json`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: twauth,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({ VoiceUrl: voiceUrl, VoiceMethod: "POST" }),
+        },
+      );
+      const updateText = await updateRes.text();
+      if (!updateRes.ok) {
+        return j({ error: `Twilio app update failed: ${updateRes.status} ${updateText.slice(0, 200)}` }, 502);
+      }
+      const updatedApp = JSON.parse(updateText) as { sid: string; friendly_name: string; voice_url: string; voice_method: string };
+      return j({
+        app: {
+          sid: updatedApp.sid,
+          friendly_name: updatedApp.friendly_name,
+          voice_url: updatedApp.voice_url,
+          voice_method: updatedApp.voice_method,
+        },
+      });
+    }
+
     // 1. Find the number on Twilio — it must already be in the account.
+    if (!phoneNumber) return j({ error: "phone_number required" }, 400);
     const listRes = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`,
       { headers: { Authorization: twauth } },

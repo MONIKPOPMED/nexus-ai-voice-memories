@@ -164,11 +164,12 @@ function buildAiAnswerTwiML(
 const DEFAULT_VOICE_ID = () =>
   Deno.env.get("ELEVENLABS_DEFAULT_VOICE_ID") ?? "UgBBYS2sOqTuMpoF3BR0";
 
-function buildForwardTwiML(forwardTo: string) {
+function buildForwardTwiML(forwardTo: string, callerId: string) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="pt-BR" voice="Polly.Camila">Transferindo sua ligação, um momento.</Say>
-  <Dial timeout="30">${forwardTo}</Dial>
+  <Dial callerId="${escapeXml(callerId)}">
+    <Number>${escapeXml(forwardTo)}</Number>
+  </Dial>
 </Response>`;
 }
 
@@ -310,7 +311,7 @@ Deno.serve(async (req) => {
         break;
       }
       case "forward_to_agent":
-        twiml = forwardTo ? buildForwardTwiML(forwardTo) : VOICEMAIL_TWIML;
+        twiml = forwardTo ? buildForwardTwiML(forwardTo, ownE164) : VOICEMAIL_TWIML;
         break;
       case "voicemail":
       default:

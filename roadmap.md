@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Configurar +5548996975445 para encaminhar chamadas a +5511999998888 via TwiML
+- [ ] Criar endpoint TwiML e preencher a URL de solicitação do app TwiML “Bia - cobrança”
 - [ ] Permitir configurar cada integração separadamente, sem bloquear o painel
 - [ ] Mostrar integrações sem credenciais como “Não configurada” e desativar suas ações
 - [ ] Verificar conexão antes de exibir uma integração como conectada

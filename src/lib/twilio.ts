@@ -102,10 +102,3 @@ export async function buyNumber(params: {
   return data as { phone_number: any; twilio: any };
 }
 
-export async function retryTranscription(voiceCallId: string) {
-  const { data, error } = await supabase.functions.invoke("transcribe-voice", {
-    body: { voice_call_id: voiceCallId },
-  });
-  if (error) throw error;
-  return data;
-}

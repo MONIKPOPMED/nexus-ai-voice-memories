@@ -1,5 +1,6 @@
 // TwiML served to Twilio after voice-escalate redirects the call.
-// ?mode=transfer&to=+15551234567&caller_id=+15557654321 → <Dial> that number
+// TwiML App POST: To=+15551234567 → <Dial> that number
+// ?mode=transfer&to=+15551234567&caller_id=+15557654321 remains supported
 // ?mode=voicemail                → <Say><Record>
 
 const corsHeaders = {
@@ -23,18 +24,36 @@ function escapeXml(s: string): string {
     .replace(/'/g, "&apos;");
 }
 
-Deno.serve((req) => {
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
   const url = new URL(req.url);
-  const mode = url.searchParams.get("mode") ?? "voicemail";
+  let postedTo = "";
+  let postedCallerId = "";
+
+  if (req.method === "POST") {
+    const contentType = req.headers.get("content-type") ?? "";
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      const form = await req.formData();
+      postedTo = String(form.get("To") ?? form.get("to") ?? "").trim();
+      postedCallerId = String(form.get("caller_id") ?? "").trim();
+    } else if (contentType.includes("application/json")) {
+      const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+      postedTo = String(body.To ?? body.to ?? "").trim();
+      postedCallerId = String(body.caller_id ?? "").trim();
+    }
+  }
+
+  const queryTo = url.searchParams.get("to") ?? "";
+  const to = postedTo || queryTo;
+  const mode = url.searchParams.get("mode") ?? (to ? "transfer" : "voicemail");
 
   if (mode === "transfer") {
-    const to = url.searchParams.get("to") ?? "";
-    const callerId = url.searchParams.get("caller_id") ?? "";
-    if (!to) {
+    const callerId = postedCallerId || url.searchParams.get("caller_id") || "+5548996975445";
+    if (!/^\+[1-9]\d{7,14}$/.test(to)) {
       return xml(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="pt-BR">Desculpe, nao consegui transferir. Deixe seu recado apos o sinal.</Say>
-  <Record maxLength="120" playBeep="true"/>
+  <Say language="pt-BR">Não foi possível completar a ligação porque o número de destino não foi informado.</Say>
   <Hangup/>
 </Response>`);
     }

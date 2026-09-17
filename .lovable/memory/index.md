@@ -5,6 +5,7 @@ Dark theme forçado, violet/fuchsia. NUNCA light mode.
 PT-BR em toda UI. Tema premium glass/gradient.
 Lovable Cloud (Supabase) para auth + DB. Multi-tenant com RLS.
 Nexus = plataforma omnichannel de atendimento com IA.
+POPMED usa importação de planilha; não usa e-mail nem Asaas.
 
 ## Memories
 - [Design tokens](mem://design/tokens) — HSL colors, gradients violet→fuchsia, glass, typography scale, NexusLogo component
@@ -18,3 +19,4 @@ Nexus = plataforma omnichannel de atendimento com IA.
 - [Personas](mem://features/personas) — agent_personas style_profile, persona-distill/suggest edge functions, /agents UI, ChatPanel Sugestão IA button
 - [Prompt Versioning](mem://features/prompt-versioning) — prompt_versions+deployments com lifecycle draft→staging→prod, interpolate {{var}}, PROMPTS built-in inline, /prompts UI
 - [Signals + Incidents](mem://features/signals) — conversation_signals (regex puro, sem LLM) + incident_clusters (cosine match + LLM naming), SignalsOverlay no chat, /incidents page
+- [Operação de cobrança](mem://features/collection-integrations) — Carteira por planilha; e-mail e Asaas fora do fluxo

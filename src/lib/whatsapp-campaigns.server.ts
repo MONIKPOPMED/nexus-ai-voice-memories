@@ -43,7 +43,7 @@ export async function createCampaign(admin: AdminClient, userId: string, input: 
     const contact = Array.isArray(debt.contact) ? debt.contact[0] : debt.contact;
     const phone = normalizePhone(contact?.phone_number ?? null);
     if (!contact || contact.blocked || phone.length < 10 || phone.length > 15 || dnc.has(phone)) { skipped += 1; continue; }
-    const current = grouped.get(contact.id) ?? { contact, debts: [] };
+    const current: { contact: typeof contact; debts: DebtRow[] } = grouped.get(contact.id) ?? { contact, debts: [] };
     current.debts.push(debt);
     grouped.set(contact.id, current);
   }

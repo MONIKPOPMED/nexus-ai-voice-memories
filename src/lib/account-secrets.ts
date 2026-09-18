@@ -14,7 +14,6 @@ import { supabase } from "@/integrations/supabase/client";
 export type SecretProvider =
   | "twilio"
   | "elevenlabs"
-  | "deepgram"
   | "evolution"
   | "zernio"
   | "meta"

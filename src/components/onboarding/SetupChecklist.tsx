@@ -20,7 +20,6 @@ const STEP_LABELS: Record<OnboardingStep, string> = {
   empresa: "Empresa",
   elevenlabs: "Voz (ElevenLabs)",
   twilio: "Telefonia (Twilio)",
-  deepgram: "Transcrição (Deepgram)",
   evolution: "WhatsApp (Evolution)",
   carteira: "Carteira / CRM (opcional)",
   agente: "Agente IA",

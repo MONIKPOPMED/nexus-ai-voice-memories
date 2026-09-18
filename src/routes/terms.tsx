@@ -68,7 +68,7 @@ function TermsPage() {
 
       <H2>5. Integrações de terceiros</H2>
       <p>
-        Conectar Meta, Twilio, ElevenLabs, Deepgram, Pipedrive, HubSpot,
+        Conectar Meta, Twilio, ElevenLabs, Pipedrive, HubSpot,
         Calendly, Stripe, Asaas ou outros implica aceitar também os termos
         desses provedores. O cobrAI não se responsabiliza por indisponibilidades
         ou mudanças de política desses terceiros.

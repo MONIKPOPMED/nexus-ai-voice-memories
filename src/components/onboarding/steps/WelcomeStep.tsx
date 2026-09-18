@@ -35,8 +35,8 @@ export function WelcomeStep() {
 
       <div className="rounded-md border border-primary/20 bg-primary/[0.06] p-3 text-[12px] text-foreground/80">
         <strong className="font-semibold text-primary">O que vamos fazer:</strong>{" "}
-        nome da empresa, suas keys da ElevenLabs (voz), Twilio (telefonia),
-        Deepgram (transcrição) e Evolution (WhatsApp). Por fim, criar o
+        nome da empresa, suas keys da ElevenLabs (voz), Twilio (telefonia)
+        e Evolution (WhatsApp). Por fim, criar o
         primeiro agente. Pode pular qualquer passo e voltar depois.
       </div>
     </div>

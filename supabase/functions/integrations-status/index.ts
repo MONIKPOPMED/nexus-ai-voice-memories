@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 interface ProviderStatus {
-  key: string;              // "elevenlabs" | "twilio" | "evolution" | "deepgram"
+  key: string;              // "elevenlabs" | "twilio" | "evolution"
   label: string;
   configured: boolean;      // env var(s) present?
   ok: boolean | null;       // API ping succeeded? null = not tested (missing key)
@@ -51,13 +51,6 @@ Deno.serve(async (req) => {
     checkElevenLabs(admin, body.account_id),
     checkTwilio(admin, body.account_id),
     checkEvolution(admin, body.account_id),
-    Promise.resolve({
-      key: "deepgram",
-      label: "Deepgram (transcrição)",
-      configured: false,
-      ok: null,
-      detail: "Não configurada",
-    } satisfies ProviderStatus),
   ]);
 
   // Nexus-specific readiness: has an agent? has a number? IA ativada?

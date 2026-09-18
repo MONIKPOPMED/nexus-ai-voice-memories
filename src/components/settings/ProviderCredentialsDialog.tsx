@@ -29,7 +29,7 @@ import {
 } from "@/lib/account-secrets";
 import { testEvolution, provisionEvolution } from "@/lib/evolution";
 
-export type CredentialProviderKey = "twilio" | "elevenlabs" | "deepgram" | "evolution";
+export type CredentialProviderKey = "twilio" | "elevenlabs" | "evolution";
 
 interface FieldDef {
   keyName: string;
@@ -70,15 +70,6 @@ const PROVIDER_FIELDS: Record<CredentialProviderKey, {
       { keyName: "api_key", label: "API Key", type: "password", placeholder: "sk_…", required: true },
     ],
   },
-  deepgram: {
-    label: "Deepgram",
-    docsUrl: "https://console.deepgram.com/",
-    docsLabel: "Console Deepgram",
-    helper: "Usado para transcrição de chamadas. Pegue uma key em Console → API Keys.",
-    fields: [
-      { keyName: "api_key", label: "API Key", type: "password", placeholder: "…", required: true },
-    ],
-  },
   evolution: {
     label: "Evolution (WhatsApp Web)",
     docsUrl: "https://doc.evolution-api.com/",
@@ -111,7 +102,7 @@ export function ProviderCredentialsDialog({ open, onOpenChange, provider, accoun
   const hasExisting = useMemo(() => existing.size > 0, [existing]);
 
   // Load which keys are already stored.
-  // - Vault providers (twilio/elevenlabs/deepgram): query account_secrets via RPC.
+  // - Vault providers (twilio/elevenlabs): query account_secrets via RPC.
   // - Evolution: read from `channels` row (config.evolution_url / evolution_api_key).
   useEffect(() => {
     if (!open || !provider || !accountId) return;

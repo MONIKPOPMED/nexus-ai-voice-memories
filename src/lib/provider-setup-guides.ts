@@ -8,8 +8,7 @@
 export type ProviderKey =
   | "elevenlabs"
   | "twilio"
-  | "evolution"
-  | "deepgram";
+  | "evolution";
 
 export interface ProviderGuide {
   label: string;
@@ -63,20 +62,6 @@ export const PROVIDER_GUIDES: Record<ProviderKey, ProviderGuide> = {
       "Informe a URL do servidor e a global API key (AUTHENTICATION_API_KEY).",
       "Escaneie o QR code que aparecer com o WhatsApp do celular.",
     ],
-  },
-  deepgram: {
-    label: "Deepgram",
-    what: "Transcrição de áudio (voz → texto) para mensagens recebidas.",
-    secrets: [
-      { name: "api_key", description: "API key da Deepgram" },
-    ],
-    steps: [
-      "Acesse https://console.deepgram.com.",
-      "Crie um projeto se ainda não tiver.",
-      "Em 'API Keys', gere uma chave nova.",
-      "Cole na tela de configuração do workspace e clique 'Salvar e testar'.",
-    ],
-    dashboardUrl: "https://console.deepgram.com",
   },
 };
 

@@ -1,5 +1,5 @@
 // Tela genérica para pedir as keys de UM provedor durante o onboarding.
-// Cada step (ElevenLabs, Twilio, Deepgram) instancia este componente com seus
+// Cada step (ElevenLabs e Twilio) instancia este componente com seus
 // próprios campos. As keys vão direto pro Vault da conta via setAccountSecretsBulk.
 // Botão "Testar conexão" chama runHealthCheck(force=true) e atualiza o badge.
 
@@ -38,7 +38,7 @@ export interface ProviderField {
 export interface ProviderKeyStepProps {
   accountId: string;
   /** Provider key como em account_secrets E em integrations-status. */
-  provider: SecretProvider & ("elevenlabs" | "twilio" | "deepgram");
+  provider: SecretProvider & ("elevenlabs" | "twilio");
   title: string;
   whatItDoes: string;
   fields: ProviderField[];

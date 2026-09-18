@@ -26,7 +26,6 @@ Deno.serve(async (req) => {
       LOVABLE_API_KEY: !!Deno.env.get("LOVABLE_API_KEY"),
       ANTHROPIC_API_KEY: !!Deno.env.get("ANTHROPIC_API_KEY"),
       OPENAI_API_KEY: !!Deno.env.get("OPENAI_API_KEY"),
-      DEEPGRAM_API_KEY: !!Deno.env.get("DEEPGRAM_API_KEY"),
       ELEVENLABS_API_KEY: !!Deno.env.get("ELEVENLABS_API_KEY"),
       TWILIO_ACCOUNT_SID: !!Deno.env.get("TWILIO_ACCOUNT_SID"),
       TWILIO_AUTH_TOKEN: !!Deno.env.get("TWILIO_AUTH_TOKEN"),
@@ -34,7 +33,7 @@ Deno.serve(async (req) => {
     };
 
     const hasLlm = env.LOVABLE_API_KEY || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY;
-    const hasVoice = env.DEEPGRAM_API_KEY && env.ELEVENLABS_API_KEY && env.TWILIO_ACCOUNT_SID;
+    const hasVoice = env.ELEVENLABS_API_KEY && env.TWILIO_ACCOUNT_SID;
 
     const workers = {
       memoryExtractor: { enabled: hasLlm, label: "Extrator de memória" },

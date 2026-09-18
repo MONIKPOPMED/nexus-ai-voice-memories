@@ -4,7 +4,6 @@ export * as sms from "./sms.ts";
 export * as numbers from "./numbers.ts";
 export * as lookups from "./lookups.ts";
 export * as recordings from "./recordings.ts";
-export * as deepgram from "./deepgram.ts";
 export {
   TwilioError,
   toE164,

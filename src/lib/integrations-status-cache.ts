@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ProviderReport {
-  key: "elevenlabs" | "twilio" | "evolution" | "deepgram";
+  key: "elevenlabs" | "twilio" | "evolution";
   label: string;
   configured: boolean;
   ok: boolean | null;

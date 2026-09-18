@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/phone-numbers")({
       { property: "og:title", content: "Telefonia — cobrAI" },
       {
         property: "og:description",
-        content: "Números Twilio com compra self-service, gravação, transcrição Deepgram e voice clone por persona.",
+        content: "Números Twilio com compra self-service, gravação e voz por persona.",
       },
     ],
   }),
@@ -874,7 +874,7 @@ function TwilioInstructionsBox() {
       <p className="mt-4 text-[11px] text-muted-foreground">
         ✓ Stack 100% serverless: a Twilio hospeda o áudio bidirecional via{" "}
         <code className="rounded bg-background/60 px-1 font-mono text-[10px]">ConversationRelay</code>,
-        com STT pelo Deepgram (nova-3) e TTS pelo ElevenLabs. Quando a persona tem agente
+        com reconhecimento de fala e TTS pelo ElevenLabs. Quando a persona tem agente
         ElevenLabs ConvAI sincronizado, a chamada vai direto pro WebSocket assinado da EL —
         sem worker externo (Fly.io/Railway) e sem fila de áudio intermediária.
       </p>

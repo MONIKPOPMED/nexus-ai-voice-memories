@@ -7,7 +7,7 @@
 //   3. Global Deno env var (caller-provided)
 //
 // Edge functions should call `resolveSecret` instead of touching env directly
-// for any provider that supports per-tenant credentials (ElevenLabs, Deepgram,
+// for any provider that supports per-tenant credentials (ElevenLabs,
 // Twilio, Evolution, Zernio).
 // ============================================================================
 
@@ -16,7 +16,6 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 export type SecretProvider =
   | "twilio"
   | "elevenlabs"
-  | "deepgram"
   | "evolution"
   | "zernio"
   | "meta";

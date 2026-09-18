@@ -64,7 +64,7 @@ export function OnboardingWizard({
 
   // Carrega o status uma vez quando entramos nos steps de provedor (se ainda não tem).
   useEffect(() => {
-    const isProviderStep = ["elevenlabs", "twilio", "deepgram", "evolution", "agente"].includes(step);
+    const isProviderStep = ["elevenlabs", "twilio", "evolution", "agente"].includes(step);
     if (!isProviderStep || !accountId || report) return;
     runHealthCheck(accountId, { force: false }).then(setReport).catch(() => undefined);
   }, [step, accountId, report]);
@@ -241,31 +241,6 @@ export function OnboardingWizard({
                     "Na home do console, copie o Account SID (AC...) e o Auth Token.",
                     "Cole os dois acima e clique 'Salvar e testar'.",
                     "Garanta que sua conta tem saldo (mínimo USD 5 recomendado).",
-                  ]}
-                  initialReport={report}
-                />
-              )}
-
-              {step === "deepgram" && (
-                <ProviderKeyStep
-                  accountId={accountId}
-                  provider="deepgram"
-                  title="Deepgram (transcrição)"
-                  whatItDoes="Transcreve áudios recebidos por WhatsApp para texto."
-                  fields={[
-                    {
-                      name: "api_key",
-                      label: "API Key",
-                      placeholder: "Cole a key da Deepgram",
-                      required: true,
-                    },
-                  ]}
-                  dashboardUrl="https://console.deepgram.com"
-                  instructions={[
-                    "Acesse https://console.deepgram.com.",
-                    "Crie um projeto se ainda não tiver.",
-                    "Em 'API Keys', gere uma chave nova.",
-                    "Cole acima e clique 'Salvar e testar'.",
                   ]}
                   initialReport={report}
                 />

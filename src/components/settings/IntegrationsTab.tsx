@@ -15,7 +15,6 @@ import {
   MessageCircle,
   Phone,
   RefreshCw,
-  Sparkles,
   Volume2,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -41,12 +40,6 @@ const PROVIDER_META: Record<
     credentialKey: CredentialProviderKey | null;
   }
 > = {
-  deepgram: {
-    icon: Sparkles,
-    setupHint: "API key da Deepgram, usada para transcrever chamadas. Salva no vault deste workspace.",
-    setupHref: "/settings",
-    credentialKey: "deepgram",
-  },
   elevenlabs: {
     icon: Volume2,
     setupHint: "Pegue a API Key em elevenlabs.io/app/settings/api-keys. As keys ficam no vault deste workspace, não no código.",
@@ -235,7 +228,7 @@ export function IntegrationsTab() {
               ok={nexus.numbers_ai_active > 0}
             />
             <StatCard
-              icon={Sparkles}
+              icon={Bot}
               label="Canais de mensagem"
               value={`${providers.filter((p) => p.key === "evolution").reduce((acc, p) => acc + (typeof p.usage?.instancias_conectadas === "number" ? p.usage.instancias_conectadas : 0), 0)}`}
               detail="Instâncias WhatsApp conectadas via Evolution"

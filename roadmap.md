@@ -19,3 +19,4 @@
 - [x] Corrigir o uso da credencial da conta na inclusão de documentos RAG
 - [x] Liberar escrita em Agents na chave ElevenLabs existente
 - [ ] Validar a inclusão real de um documento na base de conhecimento da Bia
+- [x] Adicionar Novo devedor e Importar planilha diretamente em Recuperação

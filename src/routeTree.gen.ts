@@ -28,6 +28,7 @@ import { Route as AuthenticatedChannelsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedAcordosRouteImport } from './routes/_authenticated/acordos'
+import { Route as ApiPublicWhatsappCampaignDispatchRouteImport } from './routes/api/public/whatsapp-campaign-dispatch'
 import { Route as ApiPublicHooksVoiceCallsFinalizePendingRouteImport } from './routes/api/public/hooks/voice-calls-finalize-pending'
 import { Route as ApiPublicHooksDebtorsAutoSyncRouteImport } from './routes/api/public/hooks/debtors-auto-sync'
 
@@ -128,6 +129,12 @@ const AuthenticatedAcordosRoute = AuthenticatedAcordosRouteImport.update({
   path: '/acordos',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicWhatsappCampaignDispatchRoute =
+  ApiPublicWhatsappCampaignDispatchRouteImport.update({
+    id: '/api/public/whatsapp-campaign-dispatch',
+    path: '/api/public/whatsapp-campaign-dispatch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksVoiceCallsFinalizePendingRoute =
   ApiPublicHooksVoiceCallsFinalizePendingRouteImport.update({
     id: '/api/public/hooks/voice-calls-finalize-pending',
@@ -160,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/recuperacao': typeof AuthenticatedRecuperacaoRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/voice-campaigns': typeof AuthenticatedVoiceCampaignsRoute
+  '/api/public/whatsapp-campaign-dispatch': typeof ApiPublicWhatsappCampaignDispatchRoute
   '/api/public/hooks/debtors-auto-sync': typeof ApiPublicHooksDebtorsAutoSyncRoute
   '/api/public/hooks/voice-calls-finalize-pending': typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
 }
@@ -182,6 +190,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/voice-campaigns': typeof AuthenticatedVoiceCampaignsRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/whatsapp-campaign-dispatch': typeof ApiPublicWhatsappCampaignDispatchRoute
   '/api/public/hooks/debtors-auto-sync': typeof ApiPublicHooksDebtorsAutoSyncRoute
   '/api/public/hooks/voice-calls-finalize-pending': typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
 }
@@ -206,6 +215,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/voice-campaigns': typeof AuthenticatedVoiceCampaignsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/whatsapp-campaign-dispatch': typeof ApiPublicWhatsappCampaignDispatchRoute
   '/api/public/hooks/debtors-auto-sync': typeof ApiPublicHooksDebtorsAutoSyncRoute
   '/api/public/hooks/voice-calls-finalize-pending': typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
 }
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/recuperacao'
     | '/settings'
     | '/voice-campaigns'
+    | '/api/public/whatsapp-campaign-dispatch'
     | '/api/public/hooks/debtors-auto-sync'
     | '/api/public/hooks/voice-calls-finalize-pending'
   fileRoutesByTo: FileRoutesByTo
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/voice-campaigns'
     | '/'
+    | '/api/public/whatsapp-campaign-dispatch'
     | '/api/public/hooks/debtors-auto-sync'
     | '/api/public/hooks/voice-calls-finalize-pending'
   id:
@@ -275,6 +287,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/voice-campaigns'
     | '/_authenticated/'
+    | '/api/public/whatsapp-campaign-dispatch'
     | '/api/public/hooks/debtors-auto-sync'
     | '/api/public/hooks/voice-calls-finalize-pending'
   fileRoutesById: FileRoutesById
@@ -286,6 +299,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
+  ApiPublicWhatsappCampaignDispatchRoute: typeof ApiPublicWhatsappCampaignDispatchRoute
   ApiPublicHooksDebtorsAutoSyncRoute: typeof ApiPublicHooksDebtorsAutoSyncRoute
   ApiPublicHooksVoiceCallsFinalizePendingRoute: typeof ApiPublicHooksVoiceCallsFinalizePendingRoute
 }
@@ -425,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAcordosRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/whatsapp-campaign-dispatch': {
+      id: '/api/public/whatsapp-campaign-dispatch'
+      path: '/api/public/whatsapp-campaign-dispatch'
+      fullPath: '/api/public/whatsapp-campaign-dispatch'
+      preLoaderRoute: typeof ApiPublicWhatsappCampaignDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/voice-calls-finalize-pending': {
       id: '/api/public/hooks/voice-calls-finalize-pending'
       path: '/api/public/hooks/voice-calls-finalize-pending'
@@ -485,6 +506,8 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
+  ApiPublicWhatsappCampaignDispatchRoute:
+    ApiPublicWhatsappCampaignDispatchRoute,
   ApiPublicHooksDebtorsAutoSyncRoute: ApiPublicHooksDebtorsAutoSyncRoute,
   ApiPublicHooksVoiceCallsFinalizePendingRoute:
     ApiPublicHooksVoiceCallsFinalizePendingRoute,

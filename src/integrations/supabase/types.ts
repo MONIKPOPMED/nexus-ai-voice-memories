@@ -4250,6 +4250,205 @@ export type Database = {
           },
         ]
       }
+      whatsapp_campaign_recipients: {
+        Row: {
+          account_id: string
+          attempts: number
+          campaign_id: string
+          contact_id: string
+          conversation_id: string | null
+          created_at: string
+          debt_data: Json
+          debt_ids: string[]
+          dispatch_after: string
+          generated_message: string | null
+          id: number
+          last_attempt_at: string | null
+          last_error: string | null
+          message_id: string | null
+          phone_number: string
+          provider_message_id: string | null
+          replied_at: string | null
+          sent_at: string | null
+          skip_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          attempts?: number
+          campaign_id: string
+          contact_id: string
+          conversation_id?: string | null
+          created_at?: string
+          debt_data?: Json
+          debt_ids?: string[]
+          dispatch_after?: string
+          generated_message?: string | null
+          id?: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          message_id?: string | null
+          phone_number: string
+          provider_message_id?: string | null
+          replied_at?: string | null
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          attempts?: number
+          campaign_id?: string
+          contact_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          debt_data?: Json
+          debt_ids?: string[]
+          dispatch_after?: string
+          generated_message?: string | null
+          id?: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          message_id?: string | null
+          phone_number?: string
+          provider_message_id?: string | null
+          replied_at?: string | null
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaign_recipients_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_campaigns: {
+        Row: {
+          account_id: string
+          audience_mode: string
+          contact_count: number
+          created_at: string
+          created_by_id: string | null
+          daily_limit: number
+          failed_count: number
+          finished_at: string | null
+          id: string
+          inbox_id: string
+          last_error: string | null
+          name: string
+          persona_id: string
+          replied_count: number
+          scheduled_for: string | null
+          sent_count: number
+          skipped_count: number
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          audience_mode?: string
+          contact_count?: number
+          created_at?: string
+          created_by_id?: string | null
+          daily_limit?: number
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          inbox_id: string
+          last_error?: string | null
+          name: string
+          persona_id: string
+          replied_count?: number
+          scheduled_for?: string | null
+          sent_count?: number
+          skipped_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          audience_mode?: string
+          contact_count?: number
+          created_at?: string
+          created_by_id?: string | null
+          daily_limit?: number
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          inbox_id?: string
+          last_error?: string | null
+          name?: string
+          persona_id?: string
+          replied_count?: number
+          scheduled_for?: string | null
+          sent_count?: number
+          skipped_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_campaigns_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaigns_inbox_id_fkey"
+            columns: ["inbox_id"]
+            isOneToOne: false
+            referencedRelation: "inboxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_campaigns_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "agent_personas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_events: {
         Row: {
           account_id: string
@@ -4473,6 +4672,38 @@ export type Database = {
         Args: { p_failure?: number; p_success?: number; p_workflow_id: string }
         Returns: undefined
       }
+      claim_whatsapp_campaign_recipients: {
+        Args: { p_limit?: number }
+        Returns: {
+          account_id: string
+          attempts: number
+          campaign_id: string
+          contact_id: string
+          conversation_id: string | null
+          created_at: string
+          debt_data: Json
+          debt_ids: string[]
+          dispatch_after: string
+          generated_message: string | null
+          id: number
+          last_attempt_at: string | null
+          last_error: string | null
+          message_id: string | null
+          phone_number: string
+          provider_message_id: string | null
+          replied_at: string | null
+          sent_at: string | null
+          skip_reason: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_campaign_recipients"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       complete_super_admin_onboarding: { Args: never; Returns: boolean }
       delete_account_secret: {
         Args: { p_account_id: string; p_key_name: string; p_provider: string }
@@ -4614,6 +4845,10 @@ export type Database = {
       }
       onboarding_dismiss: { Args: { p_account_id: string }; Returns: undefined }
       onboarding_reopen: { Args: { p_account_id: string }; Returns: undefined }
+      refresh_whatsapp_campaign_totals: {
+        Args: { p_campaign_id: string }
+        Returns: undefined
+      }
       reject_arrangement: {
         Args: { p_arrangement_id: string; p_reason: string }
         Returns: boolean

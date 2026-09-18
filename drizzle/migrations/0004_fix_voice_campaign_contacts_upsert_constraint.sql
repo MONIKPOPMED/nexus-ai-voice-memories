@@ -1,0 +1,3 @@
+ALTER TABLE public.voice_campaign_contacts
+ADD CONSTRAINT voice_campaign_contacts_campaign_contact_key
+UNIQUE (campaign_id, contact_id);

@@ -10,6 +10,8 @@ import {
   Loader2,
   AlertCircle,
   ArrowRight,
+  Upload,
+  UserPlus,
 } from "lucide-react";
 import { useAccount } from "@/lib/account-context";
 import {
@@ -21,12 +23,25 @@ import {
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WalletSyncCard } from "@/components/wallet/WalletSyncCard";
+import { DebtorFormDialog } from "@/components/contacts/DebtorFormDialog";
+import { CSVImporter } from "@/components/contacts/CSVImporter";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/recuperacao")({
   head: () => ({
     meta: [
       { title: "Recuperação — cobrAI" },
       { name: "description", content: "Análise detalhada de recuperação: 7 dias, top motivos, ticket médio." },
+      { property: "og:title", content: "Recuperação — cobrAI" },
+      { property: "og:description", content: "Acompanhe resultados e cadastre a carteira de cobrança." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: RecuperacaoPage,
@@ -36,6 +51,8 @@ function RecuperacaoPage() {
   const { accountId } = useAccount();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [newDebtorOpen, setNewDebtorOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const inFlight = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -65,6 +82,18 @@ function RecuperacaoPage() {
         eyebrow="Cobrança"
         title="Recuperação"
         description="Análise de 7 dias: taxa de contato, acordos fechados, motivos de não-contato e ticket médio."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => setNewDebtorOpen(true)}>
+              <UserPlus className="mr-1.5 h-4 w-4" />
+              Novo devedor
+            </Button>
+            <Button onClick={() => setImportOpen(true)}>
+              <Upload className="mr-1.5 h-4 w-4" />
+              Importar planilha
+            </Button>
+          </div>
+        }
       />
 
       <div className="px-6 py-6">
@@ -171,6 +200,21 @@ function RecuperacaoPage() {
           </>
         )}
       </div>
+
+      <DebtorFormDialog
+        open={newDebtorOpen}
+        onOpenChange={setNewDebtorOpen}
+        onCreated={() => void refresh()}
+      />
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar planilha de devedores</DialogTitle>
+          </DialogHeader>
+          <CSVImporter onComplete={() => void refresh()} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

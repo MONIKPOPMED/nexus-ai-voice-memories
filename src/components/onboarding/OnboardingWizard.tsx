@@ -199,13 +199,13 @@ export function OnboardingWizard({
                       label: "API Key",
                       placeholder: "sk_...",
                       required: true,
-                      helpText: "Começa com 'sk_'. Crie em Settings → API Keys com permissões de Voice + ConvAI.",
+                      helpText: "Começa com 'sk_'. Habilite acesso de escrita a Voice, Agents e Knowledge Base.",
                     },
                   ]}
                   dashboardUrl="https://elevenlabs.io/app/settings/api-keys"
                   instructions={[
                     "Acesse https://elevenlabs.io/app/settings/api-keys e faça login.",
-                    "Clique em 'Create API Key' e marque os escopos de Voice + ConvAI.",
+                    "Clique em 'Create API Key' e habilite escrita em Voice, Agents e Knowledge Base.",
                     "Copie o valor (sk_...) e cole acima.",
                     "Clique em 'Salvar e testar'.",
                   ]}

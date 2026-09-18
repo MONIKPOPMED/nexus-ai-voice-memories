@@ -28,7 +28,8 @@ export const PROVIDER_GUIDES: Record<ProviderKey, ProviderGuide> = {
     ],
     steps: [
       "Acesse https://elevenlabs.io/app/settings/api-keys e faça login.",
-      "Clique em 'Create API Key' e copie o valor (xi_...).",
+      "Clique em 'Create API Key' e habilite escrita em Voice, Agents e Knowledge Base.",
+      "Copie o valor da nova chave (xi_...).",
       "Cole na tela de configuração do workspace.",
       "Clique em 'Salvar e testar'.",
     ],

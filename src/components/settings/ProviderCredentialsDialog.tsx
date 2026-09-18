@@ -65,7 +65,7 @@ const PROVIDER_FIELDS: Record<CredentialProviderKey, {
     label: "ElevenLabs",
     docsUrl: "https://elevenlabs.io/app/settings/api-keys",
     docsLabel: "Painel ElevenLabs",
-    helper: "Crie uma API Key em Settings → API Keys. Precisa de permissão de Voice + ConvAI.",
+    helper: "Crie uma API Key em Settings → API Keys. Para usar voz e RAG, habilite acesso de escrita a Voice, Agents e Knowledge Base.",
     fields: [
       { keyName: "api_key", label: "API Key", type: "password", placeholder: "sk_…", required: true },
     ],

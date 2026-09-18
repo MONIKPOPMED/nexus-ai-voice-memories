@@ -100,7 +100,12 @@ Deno.serve(async (req) => {
   if (!createRes.ok) {
     const t = await createRes.text().catch(() => "");
     if (createRes.status === 401 || createRes.status === 403) {
-      return j({ error: "A credencial da ElevenLabs está inválida ou sem permissão para a base de conhecimento" }, 401);
+      console.warn(`[el-kb-add] knowledge-base create denied status=${createRes.status}`);
+      return j({
+        ok: false,
+        code: "elevenlabs_knowledge_base_permission_required",
+        error: "A chave da ElevenLabs funciona para voz, mas não permite criar documentos. Gere uma chave com acesso de escrita a Agents e Knowledge Base em Configurações → Integrações.",
+      });
     }
     return j({ error: `Falha da ElevenLabs ao criar o documento (${createRes.status}): ${t.slice(0, 200)}` }, 502);
   }
@@ -130,7 +135,12 @@ Deno.serve(async (req) => {
   if (!patchRes.ok) {
     const t = await patchRes.text().catch(() => "");
     if (patchRes.status === 401 || patchRes.status === 403) {
-      return j({ error: "A credencial da ElevenLabs está inválida ou sem permissão para vincular o documento" }, 401);
+      console.warn(`[el-kb-add] agent knowledge-base link denied status=${patchRes.status}`);
+      return j({
+        ok: false,
+        code: "elevenlabs_agent_write_permission_required",
+        error: "O documento foi criado, mas a chave da ElevenLabs não permite alterar o agente. Gere uma chave com acesso de escrita a Agents e Knowledge Base em Configurações → Integrações.",
+      });
     }
     return j({ error: `Documento criado, mas a ElevenLabs não permitiu vinculá-lo ao agente (${patchRes.status}): ${t.slice(0, 200)}` }, 502);
   }

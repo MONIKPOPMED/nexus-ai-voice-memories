@@ -179,19 +179,9 @@ async function handleMessage(
     .from("channels")
     .select("id, account_id, config")
     .eq("channel_type", "whatsapp")
-    .filter("config->>instance_name", "eq", instanceName)
+    .filter("config->>evolution_instance_name", "eq", instanceName)
     .maybeSingle();
 
-  // Fall back to any whatsapp channel if instance lookup failed (single-tenant test).
-  if (!channel) {
-    const { data: anyChannel } = await admin
-      .from("channels")
-      .select("id, account_id, config")
-      .eq("channel_type", "whatsapp")
-      .limit(1)
-      .maybeSingle();
-    channel = anyChannel ?? null;
-  }
   if (!channel) {
     console.warn("[evolution-incoming] no whatsapp channel for instance", instanceName);
     return;
@@ -309,7 +299,17 @@ async function handleMessage(
     .update({ last_activity_at: new Date().toISOString() })
     .eq("id", conversation.id);
 
-  // Fire auto-reply (best-effort). The function has its own loop guards.
+  // Only explicitly enabled automatic deployments may answer this inbox.
+  const { data: deployment } = await admin
+    .from("agent_persona_deployments")
+    .select("id")
+    .eq("account_id", accountId)
+    .eq("inbox_id", inbox.id)
+    .eq("enabled", true)
+    .eq("autonomy", "auto")
+    .maybeSingle();
+  if (!deployment) return;
+
   try {
     await admin.functions.invoke("persona-auto-reply", {
       body: {

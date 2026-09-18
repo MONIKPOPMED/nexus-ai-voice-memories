@@ -10,3 +10,5 @@
 - [ ] Mostrar integrações sem credenciais como “Não configurada” e desativar suas ações
 - [ ] Verificar conexão antes de exibir uma integração como conectada
 - [ ] Solicitar apenas as credenciais da próxima integração escolhida
+- [x] Criar a área Canais e preparar a ativação independente da Bia no WhatsApp via Evolution
+- [ ] Conectar a Evolution, parear o WhatsApp e validar uma mensagem real (aguarda URL e chave do servidor)

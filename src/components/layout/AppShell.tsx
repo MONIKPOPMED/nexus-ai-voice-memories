@@ -14,6 +14,7 @@ import {
   History,
   Handshake,
   MessageCircle,
+  Radio,
   UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Configuração",
     items: [
       { to: "/phone-numbers", label: "Números de telefone", icon: Phone },
+      { to: "/channels", label: "Canais", icon: Radio, adminOnly: true },
       { to: "/equipe", label: "Equipe", icon: UserPlus, adminOnly: true },
       { to: "/settings", label: "Configurações", icon: Settings },
     ],

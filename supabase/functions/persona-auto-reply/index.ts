@@ -6,6 +6,7 @@
 // it produced 100+ replies per minute to a single contact.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
+import { sendText } from "../_shared/evolution/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,29 +101,24 @@ Deno.serve(async (req) => {
     return j({ skipped: "hourly_cap" });
   }
 
-  // 4) Resolve persona (deployment for inbox, else any account persona).
+  // 4) Resolve only an explicitly enabled automatic deployment for this inbox.
   let personaId: string | null = null;
   let systemPrompt = "Você é um agente de cobrança humano e cordial.";
   if (inboxId) {
     const { data: dep } = await admin
       .from("agent_persona_deployments")
-      .select("persona_id")
+      .select("persona_id, daily_message_budget, messages_sent_today")
       .eq("account_id", accountId)
       .eq("inbox_id", inboxId)
       .eq("enabled", true)
+      .eq("autonomy", "auto")
       .maybeSingle();
+    if (dep && dep.messages_sent_today >= dep.daily_message_budget) {
+      return j({ skipped: "daily_budget_reached" });
+    }
     if (dep?.persona_id) personaId = dep.persona_id;
   }
-  if (!personaId) {
-    const { data: anyPersona } = await admin
-      .from("agent_personas")
-      .select("id")
-      .eq("account_id", accountId)
-      .eq("enabled", true)
-      .limit(1)
-      .maybeSingle();
-    if (anyPersona) personaId = anyPersona.id;
-  }
+  if (!personaId) return j({ skipped: "no_active_deployment" });
   if (personaId) {
     const { data: persona } = await admin
       .from("agent_personas")
@@ -213,18 +209,29 @@ Deno.serve(async (req) => {
     return j({ error: "insert_failed" }, 500);
   }
 
-  // 8) Hand off to the channel sender (best-effort — if it fails, the message
-  // stays as an internal record but we don't loop).
+  // 8) Deliver only through a confirmed Evolution connection.
   try {
-    await admin.functions.invoke("channels-send", {
-      body: {
-        accountId,
-        conversationId,
-        messageId: inserted.id,
-      },
-    });
+    const { data: conversation } = await admin.from("conversations").select("contact_id").eq("id", conversationId).maybeSingle();
+    const { data: contact } = conversation?.contact_id
+      ? await admin.from("contacts").select("phone_number, identifier").eq("id", conversation.contact_id).maybeSingle()
+      : { data: null };
+    const { data: inbox } = await admin.from("inboxes").select("channel_id, channel_type").eq("id", inboxId).maybeSingle();
+    const { data: channel } = inbox?.channel_id
+      ? await admin.from("channels").select("config, enabled").eq("id", inbox.channel_id).maybeSingle()
+      : { data: null };
+    const cfg = (channel?.config ?? {}) as Record<string, string>;
+    const number = contact?.phone_number || contact?.identifier?.match(/evolution:whatsapp:([^@:]+)/)?.[1] || "";
+    if (inbox?.channel_type !== "whatsapp" || !channel?.enabled || cfg.evolution_instance_status !== "connected") {
+      return j({ error: "channel_not_connected", messageId: inserted.id }, 409);
+    }
+    if (!cfg.evolution_url || !cfg.evolution_api_key || !cfg.evolution_instance_name || !number) {
+      return j({ error: "channel_not_configured", messageId: inserted.id }, 409);
+    }
+    const sent = await sendText({ url: cfg.evolution_url, apiKey: cfg.evolution_api_key, instanceName: cfg.evolution_instance_name, number, text: reply });
+    await admin.from("messages").update({ source_id: sent.messageId ?? null }).eq("id", inserted.id);
   } catch (err) {
-    console.warn("[persona-auto-reply] channels-send failed", err);
+    console.warn("[persona-auto-reply] Evolution send failed", err);
+    return j({ error: "send_failed", messageId: inserted.id }, 502);
   }
 
   // 9) Best-effort: extrair acordo da conversa (mesma lógica das ligações).

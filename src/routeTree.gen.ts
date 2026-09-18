@@ -24,6 +24,7 @@ import { Route as AuthenticatedHistoricoRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEquipeRouteImport } from './routes/_authenticated/equipe'
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedChannelsRouteImport } from './routes/_authenticated/channels'
 import { Route as AuthenticatedCallsRouteImport } from './routes/_authenticated/calls'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedAcordosRouteImport } from './routes/_authenticated/acordos'
@@ -107,6 +108,11 @@ const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedChannelsRoute = AuthenticatedChannelsRouteImport.update({
+  id: '/channels',
+  path: '/channels',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedCallsRoute = AuthenticatedCallsRouteImport.update({
   id: '/calls',
   path: '/calls',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/acordos': typeof AuthenticatedAcordosRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/calls': typeof AuthenticatedCallsRoute
+  '/channels': typeof AuthenticatedChannelsRoute
   '/chat': typeof AuthenticatedChatRoute
   '/contacts': typeof AuthenticatedContactsRoute
   '/equipe': typeof AuthenticatedEquipeRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/acordos': typeof AuthenticatedAcordosRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/calls': typeof AuthenticatedCallsRoute
+  '/channels': typeof AuthenticatedChannelsRoute
   '/chat': typeof AuthenticatedChatRoute
   '/contacts': typeof AuthenticatedContactsRoute
   '/equipe': typeof AuthenticatedEquipeRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/_authenticated/acordos': typeof AuthenticatedAcordosRoute
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/calls': typeof AuthenticatedCallsRoute
+  '/_authenticated/channels': typeof AuthenticatedChannelsRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/contacts': typeof AuthenticatedContactsRoute
   '/_authenticated/equipe': typeof AuthenticatedEquipeRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/acordos'
     | '/agents'
     | '/calls'
+    | '/channels'
     | '/chat'
     | '/contacts'
     | '/equipe'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/acordos'
     | '/agents'
     | '/calls'
+    | '/channels'
     | '/chat'
     | '/contacts'
     | '/equipe'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/_authenticated/acordos'
     | '/_authenticated/agents'
     | '/_authenticated/calls'
+    | '/_authenticated/channels'
     | '/_authenticated/chat'
     | '/_authenticated/contacts'
     | '/_authenticated/equipe'
@@ -385,6 +397,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/channels': {
+      id: '/_authenticated/channels'
+      path: '/channels'
+      fullPath: '/channels'
+      preLoaderRoute: typeof AuthenticatedChannelsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/calls': {
       id: '/_authenticated/calls'
       path: '/calls'
@@ -427,6 +446,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAcordosRoute: typeof AuthenticatedAcordosRoute
   AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRoute
   AuthenticatedCallsRoute: typeof AuthenticatedCallsRoute
+  AuthenticatedChannelsRoute: typeof AuthenticatedChannelsRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
   AuthenticatedEquipeRoute: typeof AuthenticatedEquipeRoute
@@ -442,6 +462,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAcordosRoute: AuthenticatedAcordosRoute,
   AuthenticatedAgentsRoute: AuthenticatedAgentsRoute,
   AuthenticatedCallsRoute: AuthenticatedCallsRoute,
+  AuthenticatedChannelsRoute: AuthenticatedChannelsRoute,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedContactsRoute: AuthenticatedContactsRoute,
   AuthenticatedEquipeRoute: AuthenticatedEquipeRoute,

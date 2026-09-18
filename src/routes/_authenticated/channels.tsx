@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, CheckCircle2, Loader2, MessageCircle, Plug, ShieldAlert } from "lucide-react";
+import { Bot, CheckCircle2, Loader2, MessageCircle, Plug, Send, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EvolutionQuickConnect } from "@/components/onboarding/EvolutionQuickConnect";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useAccount } from "@/lib/account-context";
 import { fetchEvolutionStatus } from "@/lib/evolution";
 import { deleteDeployment, deployPersona, fetchDeployments, fetchPersonas, type Persona } from "@/lib/personas";
@@ -39,6 +40,9 @@ function ChannelsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState("Olá! Aqui é a Bia, assistente virtual da POPMED. Podemos conversar sobre sua pendência?");
+  const [sendingTest, setSendingTest] = useState(false);
 
   const load = useCallback(async () => {
     if (!accountId) { setLoading(false); return; }
@@ -96,6 +100,23 @@ function ChannelsPage() {
     finally { setSaving(false); }
   }
 
+  async function sendTestMessage() {
+    if (!accountId || !testPhone.trim() || !testMessage.trim()) return;
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("chat-send-message", {
+        body: { account_id: accountId, phone: testPhone, content: testMessage },
+      });
+      const result = data as { ok?: boolean; error?: string } | null;
+      if (error || !result?.ok) throw new Error(result?.error ?? error?.message ?? "Não foi possível enviar");
+      toast.success("Mensagem enviada pela Bia");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar");
+    } finally {
+      setSendingTest(false);
+    }
+  }
+
   return <div className="flex flex-col">
     <PageHeader eyebrow="Configuração" title="Canais" description="Conecte cada canal separadamente e escolha onde a agente responde." />
     <div className="space-y-6 px-6 py-6">
@@ -112,6 +133,15 @@ function ChannelsPage() {
           {personas.map((persona) => <div key={persona.id} className="flex items-center justify-between rounded-md border border-border p-3"><div><p className="text-sm font-medium">{persona.name}</p><p className="text-xs text-muted-foreground">{activePersonaId === persona.id ? "Ativa no WhatsApp" : "Somente ligações ou inativa neste canal"}</p></div><Switch checked={activePersonaId === persona.id} disabled={!connected || !inbox || saving || role !== "admin"} onCheckedChange={(checked) => void togglePersona(persona.id, checked)} aria-label={`Ativar ${persona.name} no WhatsApp`} /></div>)}
           <div className="max-w-xs space-y-1.5 pt-2"><Label htmlFor="daily-budget">Limite diário de respostas</Label><Input id="daily-budget" type="number" min={1} max={1000} value={dailyBudget} disabled={!!activePersonaId || !connected} onChange={(event) => setDailyBudget(Math.max(1, Math.min(1000, Number(event.target.value) || 1)))} /><p className="text-xs text-muted-foreground">Para alterar, desative a agente e ative novamente.</p></div>
         </div>}
+      </section>
+      <section className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-4 flex items-center gap-3"><Send className="h-5 w-5 text-primary" /><div><h2 className="font-semibold">Enviar mensagem de teste</h2><p className="text-sm text-muted-foreground">Inicie uma conversa como Bia e teste a resposta do devedor.</p></div></div>
+        <div className="grid gap-4 md:grid-cols-[minmax(220px,0.45fr)_minmax(320px,1fr)_auto] md:items-end">
+          <div className="space-y-1.5"><Label htmlFor="test-phone">WhatsApp do devedor</Label><Input id="test-phone" inputMode="tel" placeholder="5548999999999" value={testPhone} onChange={(event) => setTestPhone(event.target.value)} disabled={!connected || !activePersonaId || sendingTest} /></div>
+          <div className="space-y-1.5"><Label htmlFor="test-message">Mensagem</Label><Textarea id="test-message" value={testMessage} onChange={(event) => setTestMessage(event.target.value)} disabled={!connected || !activePersonaId || sendingTest} className="min-h-[72px] resize-none" /></div>
+          <Button onClick={() => void sendTestMessage()} disabled={!connected || !activePersonaId || !testPhone.trim() || !testMessage.trim() || sendingTest || role !== "admin"} className="md:mb-0.5">{sendingTest ? <Loader2 className="animate-spin" /> : <Send />}Enviar</Button>
+        </div>
+        {!activePersonaId && <p className="mt-3 text-xs text-muted-foreground">Ative a Bia acima para liberar o envio.</p>}
       </section>
     </div>
     {accountId && <EvolutionQuickConnect open={connectOpen} onOpenChange={setConnectOpen} accountId={accountId} onConnected={() => void load()} />}

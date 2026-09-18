@@ -6,6 +6,7 @@
 // - Records the outgoing message in `messages` (sender_type=User, message_type=1)
 //
 // Body: { conversation_id: uuid, content: string }
+// Or to start a conversation: { account_id: uuid, phone: string, content: string }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 import { sendText } from "../_shared/evolution/index.ts";
@@ -33,13 +34,51 @@ Deno.serve(async (req) => {
   const userId = userRes?.user?.id;
   if (!userId) return j({ error: "invalid token" }, 401);
 
-  let body: { conversation_id?: string; content?: string };
+  let body: { conversation_id?: string; account_id?: string; phone?: string; content?: string };
   try { body = await req.json(); } catch { return j({ error: "bad json" }, 400); }
-  const conversationId = body.conversation_id;
+  let conversationId = body.conversation_id;
   const text = (body.content ?? "").trim();
-  if (!conversationId) return j({ error: "conversation_id required" }, 400);
   if (!text) return j({ error: "content required" }, 400);
   if (text.length > 4000) return j({ error: "content too long" }, 413);
+
+  // Active first message: create/reuse the contact and conversation before sending.
+  if (!conversationId) {
+    const accountId = body.account_id ?? "";
+    const phone = (body.phone ?? "").replace(/\D/g, "");
+    if (!accountId) return j({ error: "account_id required" }, 400);
+    if (phone.length < 10 || phone.length > 15) {
+      return j({ error: "Informe o número com DDD e código do país" }, 400);
+    }
+    const { data: member } = await admin.from("account_users").select("id").eq("account_id", accountId).eq("user_id", userId).maybeSingle();
+    if (!member) return j({ error: "forbidden" }, 403);
+    const { data: channel } = await admin.from("channels").select("id, config, enabled").eq("account_id", accountId).eq("channel_type", "whatsapp").eq("enabled", true).maybeSingle();
+    const channelCfg = (channel?.config ?? {}) as Record<string, string>;
+    if (!channel || channelCfg.evolution_instance_status !== "connected") return j({ error: "O WhatsApp não está conectado" }, 409);
+    const { data: targetInbox } = await admin.from("inboxes").select("id").eq("channel_id", channel.id).maybeSingle();
+    if (!targetInbox) return j({ error: "Caixa do WhatsApp não encontrada" }, 409);
+    const { data: deployment } = await admin.from("agent_persona_deployments").select("persona_id").eq("account_id", accountId).eq("inbox_id", targetInbox.id).eq("enabled", true).eq("autonomy", "auto").maybeSingle();
+    if (!deployment) return j({ error: "Ative a Bia no WhatsApp antes de enviar" }, 409);
+
+    const identifier = `evolution:whatsapp:${phone}`;
+    let { data: contact } = await admin.from("contacts").select("id").eq("account_id", accountId).eq("phone_number", phone).maybeSingle();
+    if (!contact) {
+      const { data: byIdentifier } = await admin.from("contacts").select("id").eq("account_id", accountId).eq("identifier", identifier).maybeSingle();
+      contact = byIdentifier;
+    }
+    if (!contact) {
+      const { data: created, error: contactError } = await admin.from("contacts").insert({ account_id: accountId, name: "Teste WhatsApp", phone_number: phone, identifier }).select("id").single();
+      if (contactError || !created) return j({ error: "Não foi possível criar o contato" }, 500);
+      contact = created;
+    }
+    await admin.from("contact_inboxes").upsert({ contact_id: contact.id, inbox_id: targetInbox.id, source_id: identifier }, { onConflict: "contact_id,inbox_id", ignoreDuplicates: true });
+    let { data: conversation } = await admin.from("conversations").select("id").eq("account_id", accountId).eq("contact_id", contact.id).eq("inbox_id", targetInbox.id).eq("status", 0).order("last_activity_at", { ascending: false }).limit(1).maybeSingle();
+    if (!conversation) {
+      const { data: created, error: conversationError } = await admin.from("conversations").insert({ account_id: accountId, contact_id: contact.id, inbox_id: targetInbox.id, status: 0 }).select("id").single();
+      if (conversationError || !created) return j({ error: "Não foi possível abrir a conversa" }, 500);
+      conversation = created;
+    }
+    conversationId = conversation.id;
+  }
 
   // Load conversation + contact + inbox
   const { data: conv } = await admin

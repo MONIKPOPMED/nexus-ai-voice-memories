@@ -13,3 +13,5 @@
 - [x] Criar a área Canais e preparar a ativação independente da Bia no WhatsApp via Evolution
 - [x] Publicar e validar as proteções de recebimento e resposta automática do WhatsApp
 - [ ] Conectar a Evolution, parear o WhatsApp e validar uma mensagem real (aguarda URL e chave do servidor)
+- [x] Corrigir o uso da credencial da conta na inclusão de documentos RAG
+- [ ] Substituir a chave ElevenLabs inválida/sem permissão e validar o documento real

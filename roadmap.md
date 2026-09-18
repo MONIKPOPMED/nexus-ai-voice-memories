@@ -11,4 +11,5 @@
 - [ ] Verificar conexão antes de exibir uma integração como conectada
 - [ ] Solicitar apenas as credenciais da próxima integração escolhida
 - [x] Criar a área Canais e preparar a ativação independente da Bia no WhatsApp via Evolution
+- [x] Publicar e validar as proteções de recebimento e resposta automática do WhatsApp
 - [ ] Conectar a Evolution, parear o WhatsApp e validar uma mensagem real (aguarda URL e chave do servidor)

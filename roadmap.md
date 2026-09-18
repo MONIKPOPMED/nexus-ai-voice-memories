@@ -15,7 +15,7 @@
 - [x] Publicar e validar as proteções de recebimento e resposta automática do WhatsApp
 - [ ] Validar uma mensagem real recebida e respondida pela Bia no WhatsApp conectado
 - [x] Orientar o teste da Bia usando um segundo aparelho ou número de WhatsApp
-- [ ] Permitir enviar uma mensagem ativa de teste informando o WhatsApp do devedor e o texto
+- [x] Permitir enviar uma mensagem ativa de teste informando o WhatsApp do devedor e o texto
 - [x] Corrigir o uso da credencial da conta na inclusão de documentos RAG
 - [x] Liberar escrita em Agents na chave ElevenLabs existente
 - [ ] Validar a inclusão real de um documento na base de conhecimento da Bia

@@ -13,8 +13,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "*",
 };
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash";
+const GATEWAY = "https://ai.gateway.lovable.dev/v1/responses";
+const MODEL = "openai/gpt-6-astra";
 const CONTEXT_TURNS = 8;
 // Don't send more than one auto-reply per N seconds in the same conversation.
 const MIN_REPLY_GAP_SECONDS = 8;
@@ -157,17 +157,24 @@ Deno.serve(async (req) => {
     const res = await fetch(GATEWAY, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableKey}`,
         "Content-Type": "application/json",
+        "Lovable-API-Key": lovableKey,
+        "X-Lovable-AIG-SDK": "fetch",
       },
       body: JSON.stringify({
         model: MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...history,
-        ],
-        max_tokens: 200,
-        temperature: 0.5,
+        stream: true,
+        store: false,
+        reasoning: { effort: "low", summary: "auto" },
+        include: ["reasoning.encrypted_content"],
+        instructions: systemPrompt,
+        input: history.map((message) => ({
+          role: message.role,
+          content: [{
+            type: message.role === "assistant" ? "output_text" : "input_text",
+            text: message.content,
+          }],
+        })),
       }),
     });
     if (!res.ok) {
@@ -175,8 +182,25 @@ Deno.serve(async (req) => {
       console.error(`[persona-auto-reply] gateway ${res.status}: ${errBody.slice(0, 200)}`);
       return j({ error: "llm_failed", status: res.status }, 502);
     }
-    const data = await res.json();
-    reply = (data?.choices?.[0]?.message?.content ?? "").trim();
+    if (!res.body) return j({ error: "llm_empty_stream" }, 502);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === "response.output_text.delta" && typeof event.delta === "string") reply += event.delta;
+        } catch { /* ignore malformed non-data events */ }
+      }
+    }
+    reply = reply.trim();
   } catch (err) {
     console.error("[persona-auto-reply] llm error", err);
     return j({ error: "llm_exception" }, 502);

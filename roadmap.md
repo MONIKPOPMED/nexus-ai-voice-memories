@@ -22,4 +22,5 @@
 - [x] Adicionar Novo devedor e Importar planilha diretamente em Recuperação
 - [x] Permitir buscar devedor cadastrado ou informar número novo no envio pelo WhatsApp
 ## Em andamento
-- [ ] Implementar cobrança ativa automática pela Bia no WhatsApp usando dados da dívida
+- [x] Implementar cobrança ativa automática pela Bia no WhatsApp usando dados da dívida
+- [ ] Publicar e validar uma campanha real com um número autorizado

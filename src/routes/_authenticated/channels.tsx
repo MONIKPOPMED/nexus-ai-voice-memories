@@ -14,6 +14,7 @@ import { deleteDeployment, deployPersona, fetchDeployments, fetchPersonas, type 
 import { supabase } from "@/integrations/supabase/client";
 import { fetchDebtors, formatBRL, type DebtorRow } from "@/lib/debtors";
 import { toast } from "sonner";
+import { WhatsAppCampaignPanel } from "@/components/channels/WhatsAppCampaignPanel";
 
 export const Route = createFileRoute("/_authenticated/channels")({
   head: () => ({ meta: [
@@ -221,6 +222,7 @@ function ChannelsPage() {
         </div>
         {!activePersonaId && <p className="mt-3 text-xs text-muted-foreground">Ative a Bia acima para liberar o envio.</p>}
       </section>
+      {accountId && <WhatsAppCampaignPanel accountId={accountId} enabled={Boolean(connected && activePersonaId)} isAdmin={role === "admin"} />}
     </div>
     {accountId && <EvolutionQuickConnect open={connectOpen} onOpenChange={setConnectOpen} accountId={accountId} onConnected={() => void load()} />}
   </div>;

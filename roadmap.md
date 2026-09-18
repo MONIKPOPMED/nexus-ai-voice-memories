@@ -23,4 +23,5 @@
 - [x] Permitir buscar devedor cadastrado ou informar número novo no envio pelo WhatsApp
 ## Em andamento
 - [x] Implementar cobrança ativa automática pela Bia no WhatsApp usando dados da dívida
+- [x] Agendar o processamento das campanhas a cada 5 minutos
 - [ ] Publicar e validar uma campanha real com um número autorizado

@@ -15,6 +15,13 @@
       "when": 1789757304651,
       "tag": "0001_create_whatsapp_collection_campaigns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789757355400,
+      "tag": "0002_add_whatsapp_campaign_queue_helpers",
+      "breakpoints": true
     }
   ]
 }

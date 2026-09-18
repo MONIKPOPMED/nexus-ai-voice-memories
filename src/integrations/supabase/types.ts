@@ -4672,6 +4672,38 @@ export type Database = {
         Args: { p_failure?: number; p_success?: number; p_workflow_id: string }
         Returns: undefined
       }
+      claim_whatsapp_campaign_recipients: {
+        Args: { p_limit?: number }
+        Returns: {
+          account_id: string
+          attempts: number
+          campaign_id: string
+          contact_id: string
+          conversation_id: string | null
+          created_at: string
+          debt_data: Json
+          debt_ids: string[]
+          dispatch_after: string
+          generated_message: string | null
+          id: number
+          last_attempt_at: string | null
+          last_error: string | null
+          message_id: string | null
+          phone_number: string
+          provider_message_id: string | null
+          replied_at: string | null
+          sent_at: string | null
+          skip_reason: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_campaign_recipients"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       complete_super_admin_onboarding: { Args: never; Returns: boolean }
       delete_account_secret: {
         Args: { p_account_id: string; p_key_name: string; p_provider: string }
@@ -4813,6 +4845,10 @@ export type Database = {
       }
       onboarding_dismiss: { Args: { p_account_id: string }; Returns: undefined }
       onboarding_reopen: { Args: { p_account_id: string }; Returns: undefined }
+      refresh_whatsapp_campaign_totals: {
+        Args: { p_campaign_id: string }
+        Returns: undefined
+      }
       reject_arrangement: {
         Args: { p_arrangement_id: string; p_reason: string }
         Returns: boolean

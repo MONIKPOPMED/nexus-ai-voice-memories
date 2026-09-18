@@ -32,6 +32,15 @@ const corsHeaders = {
 
 const EL_BASE = "https://api.elevenlabs.io";
 
+type KnowledgeBaseType = "url" | "text" | "file" | "folder";
+
+interface KnowledgeBaseLocator {
+  id: string;
+  name: string;
+  type: KnowledgeBaseType;
+  usage_mode: "auto";
+}
+
 async function elRequest(
   apiKey: string,
   method: string,
@@ -51,6 +60,30 @@ async function elRequest(
     throw new Error(`EL ${method} ${path} → ${res.status}: ${txt.slice(0, 300)}`);
   }
   return res.json().catch(() => ({}));
+}
+
+function isKnowledgeBaseType(value: unknown): value is KnowledgeBaseType {
+  return value === "url" || value === "text" || value === "file" || value === "folder";
+}
+
+async function loadKnowledgeBaseLocators(
+  apiKey: string,
+  ids: unknown,
+): Promise<KnowledgeBaseLocator[]> {
+  if (!Array.isArray(ids) || ids.length === 0) return [];
+
+  return await Promise.all(ids.filter((id): id is string => typeof id === "string").map(async (id) => {
+    const document = await elRequest(apiKey, "GET", `/v1/convai/knowledge-base/${id}`);
+    if (typeof document?.name !== "string" || !isKnowledgeBaseType(document?.type)) {
+      throw new Error(`Documento da base de conhecimento inválido: ${id}`);
+    }
+    return {
+      id,
+      name: document.name,
+      type: document.type,
+      usage_mode: "auto",
+    };
+  }));
 }
 
 Deno.serve(async (req) => {
@@ -131,6 +164,16 @@ Deno.serve(async (req) => {
   const llmMaxTokens = typeof persona.llm_max_tokens === "number" && persona.llm_max_tokens >= 200
     ? persona.llm_max_tokens
     : 400;
+  let knowledgeBase: KnowledgeBaseLocator[] = [];
+  try {
+    knowledgeBase = await loadKnowledgeBaseLocators(
+      apiKey,
+      persona.elevenlabs_knowledge_base_ids,
+    );
+  } catch (error) {
+    console.error("[el-agent-sync] failed to load knowledge-base documents", error);
+    return j({ error: "Não foi possível carregar os documentos da base de conhecimento na ElevenLabs" }, 502);
+  }
 
   // Defaults pra cada {{var}} usada no prompt. Se a chamada não passar a var
   // (ex.: ligação manual sem débito vinculado), o EL substitui pelo default
@@ -294,7 +337,7 @@ Deno.serve(async (req) => {
             },
           ],
           tool_ids: [],
-          knowledge_base: (persona.elevenlabs_knowledge_base_ids as string[]) ?? [],
+          knowledge_base: knowledgeBase,
         },
       },
     },

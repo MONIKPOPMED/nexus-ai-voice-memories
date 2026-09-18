@@ -112,9 +112,34 @@ Deno.serve(async (req) => {
   const doc = await createRes.json();
   const docId = doc.id as string;
 
-  // 2. Fetch current agent config, append doc id to knowledge_base, PATCH.
+  // 2. Fetch current agent config and append a complete KnowledgeBaseLocator.
+  // ElevenLabs no longer accepts bare document IDs here: every item must be
+  // an object containing id, name and type.
   const current = (persona.elevenlabs_knowledge_base_ids as string[]) ?? [];
   const nextKb = [...current, docId];
+
+  const agentRes = await fetch(
+    `https://api.elevenlabs.io/v1/convai/agents/${persona.elevenlabs_agent_id}`,
+    { headers: { "xi-api-key": apiKey, Accept: "application/json" } },
+  );
+  if (!agentRes.ok) {
+    const t = await agentRes.text().catch(() => "");
+    await deleteCreatedDocument(apiKey, docId);
+    return j({ error: `Documento criado, mas não foi possível consultar o agente (${agentRes.status}): ${t.slice(0, 200)}` }, 502);
+  }
+  const agent = await agentRes.json();
+  const existingLocators = Array.isArray(agent?.conversation_config?.agent?.prompt?.knowledge_base)
+    ? agent.conversation_config.agent.prompt.knowledge_base.filter(isKnowledgeBaseLocator)
+    : [];
+  const nextLocators = [
+    ...existingLocators.filter((item: { id: string }) => item.id !== docId),
+    {
+      id: docId,
+      name: typeof doc?.name === "string" ? doc.name : body.name,
+      type: isKnowledgeBaseType(doc?.type) ? doc.type : type,
+      usage_mode: "auto",
+    },
+  ];
 
   const patchRes = await fetch(
     `https://api.elevenlabs.io/v1/convai/agents/${persona.elevenlabs_agent_id}`,
@@ -125,7 +150,7 @@ Deno.serve(async (req) => {
         conversation_config: {
           agent: {
             prompt: {
-              knowledge_base: nextKb,
+              knowledge_base: nextLocators,
             },
           },
         },
@@ -134,6 +159,7 @@ Deno.serve(async (req) => {
   );
   if (!patchRes.ok) {
     const t = await patchRes.text().catch(() => "");
+    await deleteCreatedDocument(apiKey, docId);
     if (patchRes.status === 401 || patchRes.status === 403) {
       console.warn(`[el-kb-add] agent knowledge-base link denied status=${patchRes.status}`);
       return j({
@@ -163,4 +189,37 @@ function j(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+type KnowledgeBaseType = "url" | "text" | "file" | "folder";
+
+function isKnowledgeBaseType(value: unknown): value is KnowledgeBaseType {
+  return value === "url" || value === "text" || value === "file" || value === "folder";
+}
+
+function isKnowledgeBaseLocator(value: unknown): value is {
+  id: string;
+  name: string;
+  type: KnowledgeBaseType;
+  usage_mode?: string;
+} {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return typeof item.id === "string" &&
+    typeof item.name === "string" &&
+    isKnowledgeBaseType(item.type);
+}
+
+async function deleteCreatedDocument(apiKey: string, docId: string) {
+  try {
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/knowledge-base/${docId}`,
+      { method: "DELETE", headers: { "xi-api-key": apiKey } },
+    );
+    if (!response.ok) {
+      console.warn(`[el-kb-add] failed to clean up document=${docId} status=${response.status}`);
+    }
+  } catch (error) {
+    console.warn(`[el-kb-add] failed to clean up document=${docId}`, error);
+  }
 }

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, CheckCircle2, Loader2, MessageCircle, Plug, Send, ShieldAlert } from "lucide-react";
+import { Bot, Check, CheckCircle2, Loader2, MessageCircle, Phone, Plug, Search, Send, ShieldAlert, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EvolutionQuickConnect } from "@/components/onboarding/EvolutionQuickConnect";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useAccount } from "@/lib/account-context";
 import { fetchEvolutionStatus } from "@/lib/evolution";
 import { deleteDeployment, deployPersona, fetchDeployments, fetchPersonas, type Persona } from "@/lib/personas";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchDebtors, formatBRL, type DebtorRow } from "@/lib/debtors";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/channels")({
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/_authenticated/channels")({
 
 type WhatsAppChannel = { id: string; name: string; config: Record<string, string>; enabled: boolean };
 type Inbox = { id: string; name: string };
+type RecipientMode = "registered" | "new";
 
 function ChannelsPage() {
   const { accountId, role } = useAccount();
@@ -40,6 +42,11 @@ function ChannelsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [recipientMode, setRecipientMode] = useState<RecipientMode>("registered");
+  const [debtorQuery, setDebtorQuery] = useState("");
+  const [debtorResults, setDebtorResults] = useState<DebtorRow[]>([]);
+  const [selectedDebtor, setSelectedDebtor] = useState<DebtorRow | null>(null);
+  const [searchingDebtors, setSearchingDebtors] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [testMessage, setTestMessage] = useState("Olá! Aqui é a Bia, assistente virtual da POPMED. Podemos conversar sobre sua pendência?");
   const [sendingTest, setSendingTest] = useState(false);
@@ -71,7 +78,39 @@ function ChannelsPage() {
   }, [accountId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!accountId || recipientMode !== "registered" || selectedDebtor) return;
+    const timer = window.setTimeout(async () => {
+      setSearchingDebtors(true);
+      try {
+        const result = await fetchDebtors(accountId, { q: debtorQuery, limit: 8 });
+        setDebtorResults(result.rows.filter((debtor) => debtor.phone_number));
+      } catch {
+        setDebtorResults([]);
+      } finally {
+        setSearchingDebtors(false);
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [accountId, debtorQuery, recipientMode, selectedDebtor]);
+
   const connected = channel?.config?.evolution_instance_status === "connected";
+  const recipientPhone = recipientMode === "registered" ? selectedDebtor?.phone_number ?? "" : testPhone;
+
+  function changeRecipientMode(mode: RecipientMode) {
+    setRecipientMode(mode);
+    setSelectedDebtor(null);
+    setDebtorQuery("");
+    setDebtorResults([]);
+    setTestPhone("");
+  }
+
+  function selectDebtor(debtor: DebtorRow) {
+    setSelectedDebtor(debtor);
+    setDebtorQuery("");
+    setDebtorResults([]);
+  }
 
   async function refreshConnection() {
     if (!channel) return;
@@ -101,11 +140,11 @@ function ChannelsPage() {
   }
 
   async function sendTestMessage() {
-    if (!accountId || !testPhone.trim() || !testMessage.trim()) return;
+    if (!accountId || !recipientPhone.trim() || !testMessage.trim()) return;
     setSendingTest(true);
     try {
       const { data, error } = await supabase.functions.invoke("chat-send-message", {
-        body: { account_id: accountId, phone: testPhone, content: testMessage },
+        body: { account_id: accountId, phone: recipientPhone, content: testMessage },
       });
       const result = data as { ok?: boolean; error?: string } | null;
       if (error || !result?.ok) throw new Error(result?.error ?? error?.message ?? "Não foi possível enviar");
@@ -135,11 +174,50 @@ function ChannelsPage() {
         </div>}
       </section>
       <section className="rounded-lg border border-border bg-card p-5">
-        <div className="mb-4 flex items-center gap-3"><Send className="h-5 w-5 text-primary" /><div><h2 className="font-semibold">Enviar mensagem de teste</h2><p className="text-sm text-muted-foreground">Inicie uma conversa como Bia e teste a resposta do devedor.</p></div></div>
-        <div className="grid gap-4 md:grid-cols-[minmax(220px,0.45fr)_minmax(320px,1fr)_auto] md:items-end">
-          <div className="space-y-1.5"><Label htmlFor="test-phone">WhatsApp do devedor</Label><Input id="test-phone" inputMode="tel" placeholder="5548999999999" value={testPhone} onChange={(event) => setTestPhone(event.target.value)} disabled={!connected || !activePersonaId || sendingTest} /></div>
+        <div className="mb-4 flex items-center gap-3"><Send className="h-5 w-5 text-primary" /><div><h2 className="font-semibold">Enviar mensagem</h2><p className="text-sm text-muted-foreground">Escolha um devedor da carteira ou informe um número novo.</p></div></div>
+        <div className="mb-4 inline-flex rounded-md border border-border bg-muted/30 p-1">
+          <Button type="button" size="sm" variant={recipientMode === "registered" ? "default" : "ghost"} onClick={() => changeRecipientMode("registered")} disabled={sendingTest}>
+            <UserRound className="h-4 w-4" /> Devedor cadastrado
+          </Button>
+          <Button type="button" size="sm" variant={recipientMode === "new" ? "default" : "ghost"} onClick={() => changeRecipientMode("new")} disabled={sendingTest}>
+            <Phone className="h-4 w-4" /> Número novo
+          </Button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-[minmax(280px,0.6fr)_minmax(320px,1fr)_auto] md:items-end">
+          {recipientMode === "registered" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="debtor-search">Devedor</Label>
+              {selectedDebtor ? (
+                <div className="flex min-h-10 items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{selectedDebtor.name ?? "Sem nome"}</p>
+                    <p className="truncate text-xs text-muted-foreground">{selectedDebtor.phone_number} · {formatBRL(selectedDebtor.valor_aberto)} em aberto</p>
+                  </div>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedDebtor(null)} disabled={sendingTest}>Trocar</Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input id="debtor-search" value={debtorQuery} onChange={(event) => setDebtorQuery(event.target.value)} placeholder="Buscar por nome ou telefone" className="pl-9" disabled={!connected || !activePersonaId || sendingTest} autoComplete="off" />
+                  {(searchingDebtors || debtorResults.length > 0) && (
+                    <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-md">
+                      {searchingDebtors ? <div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div> : debtorResults.map((debtor) => (
+                        <Button key={debtor.contact_id} type="button" variant="ghost" className="h-auto w-full justify-start px-2 py-2 text-left" onClick={() => selectDebtor(debtor)}>
+                          <Check className="h-4 w-4 opacity-0" />
+                          <span className="min-w-0"><span className="block truncate text-sm font-medium">{debtor.name ?? "Sem nome"}</span><span className="block truncate text-xs font-normal text-muted-foreground">{debtor.phone_number} · {formatBRL(debtor.valor_aberto)} em aberto</span></span>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {!searchingDebtors && debtorQuery.trim() && debtorResults.length === 0 && <p className="mt-1.5 text-xs text-muted-foreground">Nenhum devedor com telefone encontrado.</p>}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-1.5"><Label htmlFor="test-phone">WhatsApp do devedor</Label><Input id="test-phone" inputMode="tel" placeholder="5548999999999" value={testPhone} onChange={(event) => setTestPhone(event.target.value)} disabled={!connected || !activePersonaId || sendingTest} /></div>
+          )}
           <div className="space-y-1.5"><Label htmlFor="test-message">Mensagem</Label><Textarea id="test-message" value={testMessage} onChange={(event) => setTestMessage(event.target.value)} disabled={!connected || !activePersonaId || sendingTest} className="min-h-[72px] resize-none" /></div>
-          <Button onClick={() => void sendTestMessage()} disabled={!connected || !activePersonaId || !testPhone.trim() || !testMessage.trim() || sendingTest || role !== "admin"} className="md:mb-0.5">{sendingTest ? <Loader2 className="animate-spin" /> : <Send />}Enviar</Button>
+          <Button onClick={() => void sendTestMessage()} disabled={!connected || !activePersonaId || !recipientPhone.trim() || !testMessage.trim() || sendingTest || role !== "admin"} className="md:mb-0.5">{sendingTest ? <Loader2 className="animate-spin" /> : <Send />}Enviar</Button>
         </div>
         {!activePersonaId && <p className="mt-3 text-xs text-muted-foreground">Ative a Bia acima para liberar o envio.</p>}
       </section>

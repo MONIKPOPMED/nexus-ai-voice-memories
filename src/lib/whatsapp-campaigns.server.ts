@@ -36,7 +36,8 @@ export async function createCampaign(admin: AdminClient, userId: string, input: 
 
   const { data: dncRows } = await admin.from("dnc_list").select("phone_number, phone_e164").eq("account_id", input.accountId);
   const dnc = new Set((dncRows ?? []).flatMap((row) => [normalizePhone(row.phone_number), normalizePhone(row.phone_e164)]).filter(Boolean));
-  const grouped = new Map<string, { contact: { id: string; name: string | null; phone_number: string | null; blocked: boolean }; debts: typeof debts }>();
+  type DebtRow = NonNullable<typeof debts>[number];
+  const grouped = new Map<string, { contact: { id: string; name: string | null; phone_number: string | null; blocked: boolean }; debts: DebtRow[] }>();
   let skipped = 0;
   for (const debt of debts ?? []) {
     const contact = Array.isArray(debt.contact) ? debt.contact[0] : debt.contact;

@@ -276,7 +276,8 @@ export async function addKnowledgeBaseText(args: {
   const { data, error } = await supabase.functions.invoke("elevenlabs-kb-add", {
     body: args,
   });
-  if (error) throw new Error(error.message || "Falha ao adicionar conhecimento");
+  if (error) throw new Error(await getFunctionErrorMessage(error, "Falha ao adicionar conhecimento"));
+  if (!(data as any)?.ok) throw new Error((data as any)?.error ?? "Falha ao adicionar conhecimento");
   return data as { ok: true; document_id: string };
 }
 
@@ -292,8 +293,25 @@ export async function addKnowledgeBaseUrl(args: {
   const { data, error } = await supabase.functions.invoke("elevenlabs-kb-add", {
     body: { ...args, type: "url" },
   });
-  if (error) throw new Error(error.message || "Falha ao adicionar URL");
+  if (error) throw new Error(await getFunctionErrorMessage(error, "Falha ao adicionar URL"));
+  if (!(data as any)?.ok) throw new Error((data as any)?.error ?? "Falha ao adicionar URL");
   return data as { ok: true; document_id: string };
+}
+
+async function getFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  if (error && typeof error === "object" && "context" in error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      try {
+        const payload = await context.clone().json() as { error?: string; message?: string };
+        if (payload.error) return payload.error;
+        if (payload.message) return payload.message;
+      } catch {
+        // Keep the stable fallback below when the response is not JSON.
+      }
+    }
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────

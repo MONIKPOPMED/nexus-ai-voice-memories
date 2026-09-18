@@ -6,6 +6,10 @@
 //     url?, text? }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
+import {
+  ElevenLabsError,
+  resolveCredentialsForAccount,
+} from "../_shared/elevenlabs/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,8 +72,16 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!membership) return j({ error: "forbidden" }, 403);
 
-  const apiKey = Deno.env.get("ELEVENLABS_API_KEY") ?? "";
-  if (!apiKey) return j({ error: "ELEVENLABS_API_KEY not configured" }, 500);
+  let apiKey = "";
+  try {
+    const credentials = await resolveCredentialsForAccount(admin, accountId);
+    apiKey = credentials.apiKey;
+  } catch (error) {
+    const message = error instanceof ElevenLabsError
+      ? error.message
+      : "Credencial da ElevenLabs indisponível para esta conta";
+    return j({ error: message }, 503);
+  }
 
   // 1. Create the KB document on EL.
   const type = body.type ?? (body.url ? "url" : "text");
@@ -87,7 +99,10 @@ Deno.serve(async (req) => {
   });
   if (!createRes.ok) {
     const t = await createRes.text().catch(() => "");
-    return j({ error: `EL KB create failed: ${createRes.status}: ${t.slice(0, 200)}` }, 502);
+    if (createRes.status === 401 || createRes.status === 403) {
+      return j({ error: "A credencial da ElevenLabs está inválida ou sem permissão para a base de conhecimento" }, 401);
+    }
+    return j({ error: `Falha da ElevenLabs ao criar o documento (${createRes.status}): ${t.slice(0, 200)}` }, 502);
   }
   const doc = await createRes.json();
   const docId = doc.id as string;
@@ -114,7 +129,10 @@ Deno.serve(async (req) => {
   );
   if (!patchRes.ok) {
     const t = await patchRes.text().catch(() => "");
-    return j({ error: `EL agent patch failed: ${patchRes.status}: ${t.slice(0, 200)}` }, 502);
+    if (patchRes.status === 401 || patchRes.status === 403) {
+      return j({ error: "A credencial da ElevenLabs está inválida ou sem permissão para vincular o documento" }, 401);
+    }
+    return j({ error: `Documento criado, mas a ElevenLabs não permitiu vinculá-lo ao agente (${patchRes.status}): ${t.slice(0, 200)}` }, 502);
   }
 
   // 3. Mirror the list back to our persona row.

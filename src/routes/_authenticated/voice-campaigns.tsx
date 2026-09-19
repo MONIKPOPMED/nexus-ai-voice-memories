@@ -80,6 +80,13 @@ export const Route = createFileRoute("/_authenticated/voice-campaigns")({
         content:
           "Disparos outbound de voz com IA, script builder, escalonamento e dashboard ao vivo.",
       },
+      { property: "og:title", content: "Campanhas de Voz — cobrAI" },
+      {
+        property: "og:description",
+        content: "Crie e acompanhe campanhas de ligações em massa com agentes de voz.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: VoiceCampaignsPage,

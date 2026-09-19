@@ -4709,6 +4709,7 @@ export type Database = {
         Args: { p_account_id: string; p_key_name: string; p_provider: string }
         Returns: boolean
       }
+      delete_voice_campaign: { Args: { p_campaign_id: string }; Returns: Json }
       ensure_workspace: { Args: never; Returns: string }
       get_account_secret: {
         Args: { p_account_id: string; p_key_name: string; p_provider: string }

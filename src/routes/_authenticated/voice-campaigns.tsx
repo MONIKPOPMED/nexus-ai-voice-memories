@@ -17,6 +17,7 @@ import {
   Upload,
   FileSpreadsheet,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -41,6 +42,17 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccount } from "@/lib/account-context";
 import { fetchPersonas, type Persona } from "@/lib/personas";
@@ -51,6 +63,7 @@ import {
   pauseVoiceCampaign,
   resumeVoiceCampaign,
   cancelVoiceCampaign,
+  deleteVoiceCampaign,
   type VoiceCampaign,
   type EscalationRule,
   type VoiceScriptMode,
@@ -184,6 +197,7 @@ function VoiceCampaignsPage() {
 }
 
 function CampaignRow({ campaign, onReload, onOpen }: { campaign: VoiceCampaign; onReload: () => void; onOpen: () => void }) {
+  const [deleting, setDeleting] = useState(false);
   const progress = campaign.contact_count > 0
     ? Math.round((campaign.placed_count / campaign.contact_count) * 100)
     : 0;
@@ -295,6 +309,53 @@ function CampaignRow({ campaign, onReload, onOpen }: { campaign: VoiceCampaign; 
               <X className="h-3 w-3" />
             </Button>
           )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                disabled={deleting}
+                title="Excluir campanha"
+              >
+                {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir campanha “{campaign.name}”?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {campaign.placed_count > 0
+                    ? "Esta campanha possui histórico de ligações e não pode ser excluída. Cancele-a para mantê-la apenas como histórico."
+                    : isActive
+                      ? "Pause ou cancele esta campanha antes de excluí-la."
+                      : "A campanha e sua lista de contatos serão removidas. Essa ação não pode ser desfeita."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{campaign.placed_count > 0 || isActive ? "Entendi" : "Cancelar"}</AlertDialogCancel>
+                {campaign.placed_count === 0 && !isActive && (
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      setDeleting(true);
+                      try {
+                        await deleteVoiceCampaign(campaign.id);
+                        toast.success("Campanha excluída");
+                        onReload();
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : "Não foi possível excluir a campanha");
+                      } finally {
+                        setDeleting(false);
+                      }
+                    }}
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                )}
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>

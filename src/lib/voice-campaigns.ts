@@ -213,6 +213,22 @@ export async function resumeVoiceCampaign(campaignId: string) {
   if (error) throw error;
 }
 
+export async function deleteVoiceCampaign(campaignId: string) {
+  const { data, error } = await supabase.rpc("delete_voice_campaign", {
+    p_campaign_id: campaignId,
+  });
+  if (error) {
+    if (error.message.includes("campaign_has_call_history")) {
+      throw new Error("Campanhas com histórico de ligações não podem ser excluídas.");
+    }
+    if (error.message.includes("campaign_is_active")) {
+      throw new Error("Pause ou cancele a campanha antes de excluí-la.");
+    }
+    throw error;
+  }
+  return data;
+}
+
 /**
  * Cancela campanha + invoca edge pra abortar chamadas Twilio em curso.
  * E7: Snapshot do `placed_count` no momento do cancel pra mostrar "cancelada após X chamadas".

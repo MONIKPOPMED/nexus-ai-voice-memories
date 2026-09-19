@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Pause, Play, X, PhoneCall, Voicemail, AlertCircle, PhoneForwarded, Sparkles, RefreshCw, Download } from "lucide-react";
+import { Loader2, Pause, Play, X, PhoneCall, Voicemail, AlertCircle, PhoneForwarded, Sparkles, RefreshCw, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -10,10 +10,22 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import {
   cancelSingleCall,
   cancelVoiceCampaign,
+  deleteVoiceCampaign,
   exportVoiceCampaignCsv,
   pauseVoiceCampaign,
   reclassifyCall,
@@ -88,6 +100,19 @@ export function VoiceCampaignDetailDrawer({
       setBusy(null);
     }
   };
+  const handleDelete = async () => {
+    setBusy("delete");
+    try {
+      await deleteVoiceCampaign(campaign.id);
+      toast.success("Campanha excluída");
+      onOpenChange(false);
+      onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir a campanha");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -123,6 +148,34 @@ export function VoiceCampaignDetailDrawer({
                 {busy === "export" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
                 <span className="ml-1">CSV</span>
               </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" disabled={busy !== null}>
+                    {busy === "delete" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                    <span className="ml-1">Excluir</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir campanha “{campaign.name}”?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {campaign.placed_count > 0
+                        ? "Esta campanha possui histórico de ligações e não pode ser excluída. Cancele-a para mantê-la apenas como histórico."
+                        : isActive
+                          ? "Pause ou cancele esta campanha antes de excluí-la."
+                          : "A campanha e sua lista de contatos serão removidas. Essa ação não pode ser desfeita."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{campaign.placed_count > 0 || isActive ? "Entendi" : "Cancelar"}</AlertDialogCancel>
+                    {campaign.placed_count === 0 && !isActive && (
+                      <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDelete}>
+                        Excluir
+                      </AlertDialogAction>
+                    )}
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </SheetHeader>

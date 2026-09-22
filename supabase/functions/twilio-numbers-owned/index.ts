@@ -1,9 +1,12 @@
-// List phone numbers the Twilio account already owns (IncomingPhoneNumbers).
+// List phone numbers the Twilio account can import: owned numbers
+// (IncomingPhoneNumbers) plus verified Caller IDs (OutgoingCallerIds — BYOC
+// personal cells verified via a code call/SMS, never bought from Twilio).
 // Used by the "Importar existente" dropdown so the operator picks instead
 // of typing the E.164 by hand.
 //
 // Output includes which numbers are already registered in Nexus so the UI
-// can mark/disable them.
+// can mark/disable them, and flags verified-caller-id-only entries so the
+// UI can explain they're outbound-only.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 import {
@@ -49,16 +52,31 @@ Deno.serve(async (req) => {
     const creds = await loadAccountTwilioCreds(admin, accountId);
     const twauth = `Basic ${btoa(`${creds.apiKey ?? creds.accountSid}:${creds.apiSecret ?? creds.authToken}`)}`;
 
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/IncomingPhoneNumbers.json?PageSize=50`,
-      { headers: { Authorization: twauth } },
-    );
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      return j({ error: `Twilio list failed: ${res.status} ${t.slice(0, 200)}` }, 502);
+    const [ownedRes, callerIdRes] = await Promise.all([
+      fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/IncomingPhoneNumbers.json?PageSize=50`,
+        { headers: { Authorization: twauth } },
+      ),
+      fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/OutgoingCallerIds.json?PageSize=50`,
+        { headers: { Authorization: twauth } },
+      ),
+    ]);
+    if (!ownedRes.ok) {
+      const t = await ownedRes.text().catch(() => "");
+      return j({ error: `Twilio list failed: ${ownedRes.status} ${t.slice(0, 200)}` }, 502);
     }
-    const list = (await res.json()) as any;
-    const numbers: any[] = list?.incoming_phone_numbers ?? [];
+    const ownedList = (await ownedRes.json()) as any;
+    const owned: any[] = ownedList?.incoming_phone_numbers ?? [];
+
+    // Caller IDs are best-effort: if that lookup fails for some reason, we
+    // still want to return the owned numbers rather than failing the whole
+    // request.
+    let callerIds: any[] = [];
+    if (callerIdRes.ok) {
+      const callerIdList = (await callerIdRes.json()) as any;
+      callerIds = callerIdList?.outgoing_caller_ids ?? [];
+    }
 
     // Cross-reference with what's already imported in Nexus so the UI can
     // disable those entries.
@@ -68,14 +86,30 @@ Deno.serve(async (req) => {
       .eq("account_id", accountId);
     const importedSet = new Set((existing ?? []).map((r) => r.e164));
 
+    const ownedPhoneNumbers = new Set(owned.map((n) => n.phone_number));
+
     return j({
-      numbers: numbers.map((n) => ({
-        sid: n.sid,
-        phone_number: n.phone_number,
-        friendly_name: n.friendly_name,
-        capabilities: n.capabilities,
-        already_imported: importedSet.has(n.phone_number),
-      })),
+      numbers: [
+        ...owned.map((n) => ({
+          sid: n.sid,
+          phone_number: n.phone_number,
+          friendly_name: n.friendly_name,
+          capabilities: n.capabilities,
+          verified_caller_id_only: false,
+          already_imported: importedSet.has(n.phone_number),
+        })),
+        // Skip caller IDs that are also owned numbers (already listed above).
+        ...callerIds
+          .filter((c) => !ownedPhoneNumbers.has(c.phone_number))
+          .map((c) => ({
+            sid: c.sid,
+            phone_number: c.phone_number,
+            friendly_name: c.friendly_name,
+            capabilities: null,
+            verified_caller_id_only: true,
+            already_imported: importedSet.has(c.phone_number),
+          })),
+      ],
     });
   } catch (err) {
     if (err instanceof TwilioConfigError) return j({ error: err.message }, err.status);

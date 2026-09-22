@@ -2,9 +2,22 @@
 // which purchases a new one). Use case: trial accounts get a free number,
 // legacy accounts have numbers already, and BYOC.
 //
+// A number can exist on the Twilio account in two different ways, and both
+// are valid "already have it" cases for self-service BYOC:
+//   - Owned/purchased: shows up in /IncomingPhoneNumbers. Twilio hosts it,
+//     so we can point its voice/sms webhooks at us and receive inbound.
+//   - Verified Caller ID: shows up in /OutgoingCallerIds. This is a
+//     personal cell verified via a code call/SMS, never bought from
+//     Twilio. It can only be used as the outbound "From" — Twilio doesn't
+//     host it, so there's no webhook to configure and it can never ring
+//     inbound through us (the real carrier owns that routing).
+//
 // Flow:
-//   1. Verify number exists on the Twilio account via /IncomingPhoneNumbers
-//   2. Update its voice_url / sms_url / statusCallback to our edge fns
+//   1. Verify the number exists on the Twilio account, checking both
+//      /IncomingPhoneNumbers and /OutgoingCallerIds
+//   2. If owned, update its voice_url / sms_url / statusCallback to our
+//      edge fns. If it's only a verified caller ID, skip this step and
+//      mark the row as outbound-only.
 //   3. Upsert phone_numbers row with twilio_sid + config
 //
 // Input: { account_id, phone_number (E.164), pinned_persona_id?,
@@ -114,7 +127,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 1. Find the number on Twilio — it must already be in the account.
+    // 1. Find the number on Twilio — either owned (/IncomingPhoneNumbers)
+    //    or a verified Caller ID (/OutgoingCallerIds).
     if (!phoneNumber) return j({ error: "phone_number required" }, 400);
     const listRes = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`,
@@ -126,39 +140,72 @@ Deno.serve(async (req) => {
     }
     const list = (await listRes.json()) as any;
     const existing = list?.incoming_phone_numbers?.[0];
+
+    // Not an owned number — see if it's at least a verified Caller ID. This
+    // is the common BYOC case: a personal cell verified with Twilio via a
+    // code call/SMS, never purchased as a real Twilio number.
+    let verifiedCallerId: any = null;
     if (!existing) {
+      const callerRes = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/OutgoingCallerIds.json?PhoneNumber=${encodeURIComponent(phoneNumber)}`,
+        { headers: { Authorization: twauth } },
+      );
+      if (callerRes.ok) {
+        const callerList = (await callerRes.json()) as any;
+        verifiedCallerId = callerList?.outgoing_caller_ids?.[0] ?? null;
+      }
+      // A lookup failure here isn't fatal — we still fall through to the
+      // "not found" error below, same as if it just wasn't verified either.
+    }
+
+    if (!existing && !verifiedCallerId) {
       return j(
         {
-          error: `Número ${phoneNumber} não encontrado na conta Twilio. Confere se comprou / tá ativo.`,
+          error: `Número ${phoneNumber} não encontrado na conta Twilio. Confere se comprou ou verificou como Caller ID.`,
         },
         404,
       );
     }
 
-    // 2. Update webhooks so inbound rings our edge fn.
-    const updateBody = new URLSearchParams({
-      VoiceUrl: voiceUrl,
-      VoiceMethod: "POST",
-      SmsUrl: smsUrl,
-      SmsMethod: "POST",
-      StatusCallback: statusCallback,
-    });
-    const updRes = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/IncomingPhoneNumbers/${existing.sid}.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: twauth,
-          "Content-Type": "application/x-www-form-urlencoded",
+    const callerIdOnly = !existing;
+
+    // 2. Update webhooks so inbound rings our edge fn — only possible for
+    //    numbers Twilio actually hosts. A verified Caller ID has no webhook
+    //    to point: inbound calls to it ring the real carrier, never us, so
+    //    it can only be used as an outbound "From".
+    let updated: any;
+    if (!callerIdOnly) {
+      const updateBody = new URLSearchParams({
+        VoiceUrl: voiceUrl,
+        VoiceMethod: "POST",
+        SmsUrl: smsUrl,
+        SmsMethod: "POST",
+        StatusCallback: statusCallback,
+      });
+      const updRes = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${creds.accountSid}/IncomingPhoneNumbers/${existing.sid}.json`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: twauth,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: updateBody,
         },
-        body: updateBody,
-      },
-    );
-    if (!updRes.ok) {
-      const t = await updRes.text().catch(() => "");
-      return j({ error: `Twilio update failed: ${updRes.status} ${t.slice(0, 200)}` }, 502);
+      );
+      if (!updRes.ok) {
+        const t = await updRes.text().catch(() => "");
+        return j({ error: `Twilio update failed: ${updRes.status} ${t.slice(0, 200)}` }, 502);
+      }
+      updated = (await updRes.json()) as any;
+    } else {
+      updated = {
+        sid: verifiedCallerId.sid,
+        phone_number: verifiedCallerId.phone_number,
+        friendly_name: verifiedCallerId.friendly_name,
+        capabilities: null,
+      };
     }
-    const updated = (await updRes.json()) as any;
 
     // 3. Upsert phone_numbers. If the row already exists (e.g. re-import),
     //    keep its pin but refresh config.
@@ -177,12 +224,19 @@ Deno.serve(async (req) => {
       provider_config: {
         twilio_sid: updated.sid,
         capabilities: updated.capabilities,
-        voice_url: voiceUrl,
-        sms_url: smsUrl,
+        voice_url: callerIdOnly ? null : voiceUrl,
+        sms_url: callerIdOnly ? null : smsUrl,
+        // Lets the UI/other functions know this number can only be used as
+        // an outbound From (campaigns, ligações individuais) — it will
+        // never ring inbound through us.
+        verified_caller_id_only: callerIdOnly,
       },
       inbox_id: input.inbox_id ?? null,
       pinned_persona_id: input.pinned_persona_id ?? null,
-      inbound_behavior: input.inbound_behavior ?? "ai_answer",
+      // A caller-id-only number can't receive inbound through Twilio at
+      // all, regardless of what the caller asked for — "voicemail" is the
+      // honest state (same value the UI already uses for that case).
+      inbound_behavior: callerIdOnly ? "voicemail" : (input.inbound_behavior ?? "ai_answer"),
       outbound_enabled: true,
       enabled: true,
     };

@@ -60,6 +60,15 @@ export interface VoiceCall {
   updated_at: string;
 }
 
+/**
+ * True when the number was imported as a verified Caller ID (not bought on
+ * Twilio). It can only be the outbound "From" — inbound calls/SMS go to the
+ * real carrier, never to us, so inbound settings don't apply.
+ */
+export function isVerifiedCallerIdOnly(p: Pick<PhoneNumber, "provider_config">): boolean {
+  return p.provider_config?.verified_caller_id_only === true;
+}
+
 export const INBOUND_LABELS: Record<InboundBehavior, string> = {
   ai_answer: "IA atende",
   suggest: "IA sugere (humano envia)",

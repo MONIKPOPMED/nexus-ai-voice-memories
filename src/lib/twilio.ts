@@ -4,11 +4,19 @@ export interface OwnedTwilioNumber {
   sid: string;
   phone_number: string;
   friendly_name?: string;
-  capabilities: { voice: boolean; sms: boolean; mms: boolean; fax: boolean };
+  // null for verified Caller IDs — Twilio doesn't host them, so there are
+  // no capabilities to report.
+  capabilities: { voice: boolean; sms: boolean; mms: boolean; fax: boolean } | null;
+  // Verified Caller ID (/OutgoingCallerIds), not a number bought on Twilio.
+  // Can only be used as an outbound "From" — never receives calls/SMS.
+  verified_caller_id_only?: boolean;
   already_imported: boolean;
 }
 
-/** Lists numbers already purchased on the connected Twilio account. */
+/**
+ * Lists numbers importable from the connected Twilio account: purchased
+ * numbers plus verified Caller IDs (flagged with verified_caller_id_only).
+ */
 export async function fetchOwnedTwilioNumbers(accountId: string): Promise<OwnedTwilioNumber[]> {
   const { data, error } = await supabase.functions.invoke("twilio-numbers-owned", {
     body: { account_id: accountId },
@@ -39,7 +47,10 @@ export async function importTwilioNumber(args: {
     },
   });
   if (error) throw error;
-  return data as { phone_number: { id: string; e164: string }; twilio: { sid: string; phone_number: string; friendly_name: string } };
+  return data as {
+    phone_number: { id: string; e164: string; provider_config: Record<string, unknown> };
+    twilio: { sid: string; phone_number: string; friendly_name: string };
+  };
 }
 
 export interface AvailableNumber {

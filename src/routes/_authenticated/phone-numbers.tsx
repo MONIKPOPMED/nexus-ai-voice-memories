@@ -1263,10 +1263,9 @@ function ImportNumberDialog({
         <DialogHeader>
           <DialogTitle>Importar número Twilio existente</DialogTitle>
           <DialogDescription>
-            Use pra registrar o número que você já tem na conta Twilio (incluindo
-            o número grátis da trial). A gente aponta os webhooks sozinhos.
-            Números verificados como Caller ID também aparecem, mas servem só
-            pra ligar — não recebem ligações nem SMS.
+            Use pra registrar o número que você já tem na conta Twilio (incluindo o número grátis da
+            trial). A gente aponta os webhooks sozinhos. Números verificados como Caller ID também
+            aparecem, mas servem só pra ligar — não recebem ligações nem SMS.
           </DialogDescription>
         </DialogHeader>
 
@@ -1375,9 +1374,9 @@ function ImportNumberDialog({
             <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/[0.05] px-3 py-2 text-[11px] leading-relaxed text-foreground/80">
               <PhoneOutgoing className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
               <span>
-                Esse número é um <strong>Caller ID verificado</strong>, não foi comprado na
-                Twilio. Ele entra como <strong>só saída</strong>: dá pra usar em campanhas e
-                ligações, mas ligações e SMS recebidos continuam indo pra operadora do chip.
+                Esse número é um <strong>Caller ID verificado</strong>, não foi comprado na Twilio.
+                Ele entra como <strong>só saída</strong>: dá pra usar em campanhas e ligações, mas
+                ligações e SMS recebidos continuam indo pra operadora do chip.
               </span>
             </div>
           ) : (

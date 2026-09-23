@@ -19,10 +19,11 @@ import { useAccount } from "@/lib/account-context";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchPhoneNumbers, createPhoneNumber, updatePhoneNumber, deletePhoneNumber,
-  fetchVoiceCalls, placeCall, cloneVoiceForPersona,
+  fetchVoiceCalls, placeCall, cloneVoiceForPersona, isVerifiedCallerIdOnly,
   INBOUND_LABELS, STATUS_LABELS, STATUS_TONE,
   type InboundBehavior, type PhoneNumber,
 } from "@/lib/voice";
+import type { OwnedTwilioNumber } from "@/lib/twilio";
 import { fetchPersonas, type Persona } from "@/lib/personas";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -389,6 +390,8 @@ function PhoneNumberCard({
   const [activating, setActivating] = useState(false);
 
   const elActive = !!phoneNumber.elevenlabs_phone_number_id;
+  // Verified Caller ID: usable as outbound "From" only, never rings inbound.
+  const callerIdOnly = isVerifiedCallerIdOnly(phoneNumber);
 
   async function handleDial() {
     if (!target.trim()) return;
@@ -456,6 +459,16 @@ function PhoneNumberCard({
               <span className="text-xs text-muted-foreground">· {phoneNumber.friendly_name}</span>
             )}
             {!phoneNumber.enabled && <Badge variant="outline">Desativado</Badge>}
+            {callerIdOnly && (
+              <Badge
+                variant="outline"
+                className="border-amber-500/40 text-[10px] text-amber-600"
+                title="Caller ID verificado na Twilio — só pode ser usado para ligar. Não recebe ligações nem SMS."
+              >
+                <PhoneOutgoing className="mr-1 h-3 w-3" />
+                Só saída
+              </Badge>
+            )}
             {elActive && (
               <span
                 className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-800"
@@ -468,6 +481,7 @@ function PhoneNumberCard({
           </div>
           <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
             {phoneNumber.provider}
+            {callerIdOnly && " · Caller ID verificado"}
           </p>
         </div>
         {canEdit && (
@@ -547,22 +561,43 @@ function PhoneNumberCard({
           <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comportamento de entrada
           </label>
-          <Select
-            value={phoneNumber.inbound_behavior}
-            onValueChange={(v) => onUpdate({ inbound_behavior: v as InboundBehavior })}
-            disabled={!canEdit}
-          >
-            <SelectTrigger className="h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(INBOUND_LABELS) as InboundBehavior[]).map((b) => (
-                <SelectItem key={b} value={b}>{INBOUND_LABELS[b]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {callerIdOnly ? (
+            <div
+              className="flex h-9 items-center rounded-md border border-border bg-muted/40 px-3 text-xs text-muted-foreground"
+              title="Caller ID verificado não recebe ligações pela Twilio"
+            >
+              Não recebe ligações
+            </div>
+          ) : (
+            <Select
+              value={phoneNumber.inbound_behavior}
+              onValueChange={(v) => onUpdate({ inbound_behavior: v as InboundBehavior })}
+              disabled={!canEdit}
+            >
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(INBOUND_LABELS) as InboundBehavior[]).map((b) => (
+                  <SelectItem key={b} value={b}>{INBOUND_LABELS[b]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
+
+      {callerIdOnly && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.05] p-3">
+          <PhoneOutgoing className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+          <p className="text-[11px] leading-relaxed text-foreground/80">
+            <strong className="font-semibold">Número só de saída.</strong> Ele foi
+            verificado como Caller ID na Twilio, não comprado lá. Dá pra usar como
+            remetente em campanhas e ligações individuais, mas ligações e SMS
+            recebidos continuam indo pra operadora do chip — nunca chegam aqui.
+          </p>
+        </div>
+      )}
 
       {/* Activate IA (ElevenLabs native) — one-click registration. */}
       {canEdit && !elActive && phoneNumber.pinned_persona_id && (
@@ -1156,15 +1191,16 @@ function ImportNumberDialog({
   const [personaId, setPersonaId] = useState<string>("");
   const [behavior, setBehavior] = useState<"ai_answer" | "voicemail">("ai_answer");
   const [saving, setSaving] = useState(false);
-  const [owned, setOwned] = useState<Array<{
-    sid: string;
-    phone_number: string;
-    friendly_name?: string;
-    already_imported: boolean;
-    capabilities: { voice: boolean };
-  }> | null>(null);
+  const [owned, setOwned] = useState<OwnedTwilioNumber[] | null>(null);
   const [loadingOwned, setLoadingOwned] = useState(false);
   const [ownedError, setOwnedError] = useState<string | null>(null);
+
+  // Picked a verified Caller ID from the list → outbound-only, so inbound
+  // settings don't apply (backend forces inbound_behavior to voicemail).
+  const selectedCallerIdOnly = useMemo(
+    () => !!owned?.find((n) => n.phone_number === selected)?.verified_caller_id_only,
+    [owned, selected],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -1200,13 +1236,19 @@ function ImportNumberDialog({
     setSaving(true);
     try {
       const { importTwilioNumber } = await import("@/lib/twilio");
-      await importTwilioNumber({
+      const res = await importTwilioNumber({
         accountId,
         phoneNumber: normalized,
         pinnedPersonaId: personaId || null,
         inboundBehavior: behavior,
       });
-      toast.success(`Número ${normalized} importado — ligue e teste`);
+      if (res?.phone_number && isVerifiedCallerIdOnly(res.phone_number)) {
+        toast.success(
+          `Número ${normalized} importado como Caller ID — só saída (não recebe ligações/SMS)`,
+        );
+      } else {
+        toast.success(`Número ${normalized} importado — ligue e teste`);
+      }
       onImported();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao importar");
@@ -1223,6 +1265,8 @@ function ImportNumberDialog({
           <DialogDescription>
             Use pra registrar o número que você já tem na conta Twilio (incluindo
             o número grátis da trial). A gente aponta os webhooks sozinhos.
+            Números verificados como Caller ID também aparecem, mas servem só
+            pra ligar — não recebem ligações nem SMS.
           </DialogDescription>
         </DialogHeader>
 
@@ -1267,10 +1311,27 @@ function ImportNumberDialog({
                         <div className="font-mono text-[12px] font-medium">{n.phone_number}</div>
                         <div className="truncate text-[10px] text-muted-foreground">
                           {n.friendly_name || "sem apelido"}
-                          {disabled ? " · já importado" : n.capabilities.voice ? " · voz" : ""}
+                          {disabled
+                            ? " · já importado"
+                            : n.verified_caller_id_only
+                              ? " · Caller ID verificado"
+                              : n.capabilities?.voice
+                                ? " · voz"
+                                : ""}
                         </div>
                       </div>
-                      {active && <Check className="h-3.5 w-3.5 text-violet-300" />}
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {n.verified_caller_id_only && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded border border-amber-500/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-600"
+                            title="Só pode ser usado pra ligar. Não recebe ligações nem SMS."
+                          >
+                            <PhoneOutgoing className="h-2.5 w-2.5" />
+                            Só saída
+                          </span>
+                        )}
+                        {active && <Check className="h-3.5 w-3.5 text-violet-300" />}
+                      </div>
                     </button>
                   );
                 })}
@@ -1292,7 +1353,9 @@ function ImportNumberDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="imp-persona">Agente que atende</Label>
+            <Label htmlFor="imp-persona">
+              {selectedCallerIdOnly ? "Agente que liga" : "Agente que atende"}
+            </Label>
             <select
               id="imp-persona"
               value={personaId}
@@ -1308,35 +1371,46 @@ function ImportNumberDialog({
               ))}
             </select>
           </div>
-          <div className="space-y-1.5">
-            <Label>Comportamento de entrada</Label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setBehavior("ai_answer")}
-                className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-[12px] font-medium transition-colors",
-                  behavior === "ai_answer"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-background text-foreground hover:bg-muted",
-                )}
-              >
-                IA atende
-              </button>
-              <button
-                type="button"
-                onClick={() => setBehavior("voicemail")}
-                className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-[12px] font-medium transition-colors",
-                  behavior === "voicemail"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-background text-foreground hover:bg-muted",
-                )}
-              >
-                Voicemail
-              </button>
+          {selectedCallerIdOnly ? (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/[0.05] px-3 py-2 text-[11px] leading-relaxed text-foreground/80">
+              <PhoneOutgoing className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+              <span>
+                Esse número é um <strong>Caller ID verificado</strong>, não foi comprado na
+                Twilio. Ele entra como <strong>só saída</strong>: dá pra usar em campanhas e
+                ligações, mas ligações e SMS recebidos continuam indo pra operadora do chip.
+              </span>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Comportamento de entrada</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBehavior("ai_answer")}
+                  className={cn(
+                    "flex-1 rounded-md border px-3 py-2 text-[12px] font-medium transition-colors",
+                    behavior === "ai_answer"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  IA atende
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBehavior("voicemail")}
+                  className={cn(
+                    "flex-1 rounded-md border px-3 py-2 text-[12px] font-medium transition-colors",
+                    behavior === "voicemail"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  Voicemail
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

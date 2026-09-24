@@ -297,8 +297,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // inbound_behavior describes what happens when someone calls US. On an
+    // outbound-api call we dialed the customer to talk, so "voicemail" would
+    // play our own "deixe seu recado" prompt to them. Caller-ID-only numbers
+    // are always stored as voicemail (they never receive inbound), which made
+    // every outbound call from them hit the voicemail prompt.
+    const behavior = direction.startsWith("outbound") && phoneNumber.inbound_behavior === "voicemail"
+      ? "ai_answer"
+      : phoneNumber.inbound_behavior;
+
     let twiml: string;
-    switch (phoneNumber.inbound_behavior) {
+    switch (behavior) {
       case "ai_answer":
       case "suggest": {
         // Prefer ElevenLabs Conversational AI if the persona has a synced agent.
@@ -320,7 +329,7 @@ Deno.serve(async (req) => {
         break;
     }
     console.log(
-      `[twilio-incoming] emitting TwiML (${phoneNumber.inbound_behavior}, voice=${voiceId}, callId=${callId}):\n${twiml.slice(0, 500)}`,
+      `[twilio-incoming] emitting TwiML (${behavior}, voice=${voiceId}, callId=${callId}):\n${twiml.slice(0, 500)}`,
     );
 
     return new Response(twiml, {

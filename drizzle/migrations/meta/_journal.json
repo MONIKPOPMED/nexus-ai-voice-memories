@@ -50,6 +50,13 @@
       "when": 1790280203436,
       "tag": "0006_add_secure_whatsapp_campaign_cron_configurator",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790280483177,
+      "tag": "0007_extend_whatsapp_campaign_dispatch_timeout",
+      "breakpoints": true
     }
   ]
 }

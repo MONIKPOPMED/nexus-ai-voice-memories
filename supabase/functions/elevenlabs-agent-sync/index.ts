@@ -253,6 +253,9 @@ Deno.serve(async (req) => {
         quality: "high",
         provider: "elevenlabs",
         keywords: asrKeywords,
+        // Phone audio: twilio-incoming connects calls via EL register-call,
+        // which requires μ-law 8 kHz on both directions.
+        user_input_audio_format: "ulaw_8000",
       },
       turn: {
         turn_timeout: typeof turnCfg.turn_timeout === "number" ? turnCfg.turn_timeout : 3,
@@ -269,6 +272,7 @@ Deno.serve(async (req) => {
         speed: typeof ttsCfg.speed === "number" ? ttsCfg.speed : 1.05,
         similarity_boost:
           typeof ttsCfg.similarity_boost === "number" ? ttsCfg.similarity_boost : 0.85,
+        agent_output_audio_format: "ulaw_8000",
       },
       conversation: {
         text_only: false,

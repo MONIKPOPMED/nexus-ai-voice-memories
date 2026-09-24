@@ -4,8 +4,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import {
   getPublicUrl,
   isWebhookVerificationDisabled,
-  validateTwilioSignature,
+  validateTwilioSignatureAny,
 } from "../_shared/webhook-security.ts";
+import { resolveWebhookAuthTokens } from "../_shared/twilio/config.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -177,37 +178,37 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authToken = Deno.env.get("TWILIO_AUTH_TOKEN") ?? "";
     const formData = await req.formData();
-
-    // HMAC: Twilio signs url + sorted POST params. The request arrives at
-    // our edge function via Supabase's proxy, where req.url has a different
-    // host than the URL Twilio was configured with. Try the reconstructed
-    // URL first, fall back to the canonical SUPABASE_URL-based one.
-    if (!isWebhookVerificationDisabled()) {
-      const signature = req.headers.get("x-twilio-signature");
-      const supabaseBase = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
-      const canonicalUrl = `${supabaseBase}/functions/v1/twilio-incoming`;
-      const candidates = [getPublicUrl(req), canonicalUrl];
-      let matched = false;
-      for (const url of candidates) {
-        const ok = await validateTwilioSignature({ url, form: formData, signature, authToken });
-        if (ok) {
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
-        console.warn(
-          `[twilio-incoming] HMAC mismatch. tried=${candidates.join(",")} sig=${signature?.slice(0, 16)}…`,
-        );
-        return new Response("Forbidden", { status: 403, headers: corsHeaders });
-      }
-    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // HMAC: Twilio signs url + sorted POST params with the Auth Token of the
+    // account that placed/received the call (the workspace's vault creds,
+    // not necessarily the global env token). The request arrives at our edge
+    // function via Supabase's proxy, where req.url has a different host than
+    // the URL Twilio was configured with. Try the reconstructed URL first,
+    // fall back to the canonical SUPABASE_URL-based one.
+    if (!isWebhookVerificationDisabled()) {
+      const signature = req.headers.get("x-twilio-signature");
+      const supabaseBase = supabaseUrl.replace(/\/$/, "");
+      const canonicalUrl = `${supabaseBase}/functions/v1/twilio-incoming`;
+      const candidates = [getPublicUrl(req), canonicalUrl];
+      const authTokens = await resolveWebhookAuthTokens(supabase, formData);
+      const matched = await validateTwilioSignatureAny({
+        urls: candidates,
+        authTokens,
+        form: formData,
+        signature,
+      });
+      if (!matched) {
+        console.warn(
+          `[twilio-incoming] HMAC mismatch. tried=${candidates.join(",")} tokens=${authTokens.length} sig=${signature?.slice(0, 16)}…`,
+        );
+        return new Response("Forbidden", { status: 403, headers: corsHeaders });
+      }
+    }
 
     const callSid = formData.get("CallSid")?.toString() ?? "";
     const from = formData.get("From")?.toString() ?? "";

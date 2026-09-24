@@ -164,20 +164,22 @@ Deno.serve(async (req) => {
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-status`;
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/twilio-recording-callback`;
 
-    const form = new URLSearchParams({
+    const form = {
       To: toE164,
       From: phoneNumber.e164,
       Url: webhookUrl,
       Timeout: String(body.timeoutSeconds ?? 30),
       StatusCallback: statusCallbackUrl,
-      "StatusCallbackEvent": "initiated ringing answered completed",
+      // Twilio espera um parâmetro StatusCallbackEvent por evento; uma única
+      // string com espaços é rejeitada (warning 21626) e os status não chegam.
+      StatusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
       // Grava a ligação para que possamos transcrever + extrair acordos
       // automaticamente quando o callback de gravação chegar.
       Record: "true",
       RecordingStatusCallback: recordingCallbackUrl,
       RecordingStatusCallbackEvent: "completed",
       RecordingChannels: "dual",
-    });
+    };
 
     let twData: any;
     try {
@@ -185,7 +187,7 @@ Deno.serve(async (req) => {
         method: "POST",
         path: `/2010-04-01/Accounts/${twilioCreds.accountSid}/Calls.json`,
         credentials: twilioCreds,
-        form: Object.fromEntries(form.entries()),
+        form,
       });
     } catch (error) {
       const details = error instanceof TwilioError ? error.details : { message: String(error) };

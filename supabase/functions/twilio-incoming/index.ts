@@ -7,6 +7,7 @@ import {
   validateTwilioSignatureAny,
 } from "../_shared/webhook-security.ts";
 import { resolveWebhookAuthTokens } from "../_shared/twilio/config.ts";
+import { resolveCredentialsForAccount } from "../_shared/elevenlabs/client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +40,8 @@ async function resolveElAgentId(
 }
 
 async function buildElTwiML(
+  supabase: any,
+  accountId: string,
   elAgentId: string,
   from: string,
   _to: string,
@@ -46,9 +49,15 @@ async function buildElTwiML(
   callId: string,
   _callSid: string,
 ): Promise<string> {
-  const apiKey = Deno.env.get("ELEVENLABS_API_KEY") ?? "";
-  if (!apiKey) {
-    console.warn("[twilio-incoming] ELEVENLABS_API_KEY not set");
+  // The persona's EL agent lives in the workspace's ElevenLabs account (vault
+  // key, same as elevenlabs-agent-sync) — the global env key may belong to a
+  // different EL account or be unset, which made get_signed_url fail and
+  // every AI call fall through to the voicemail prompt.
+  let apiKey = "";
+  try {
+    apiKey = (await resolveCredentialsForAccount(supabase, accountId)).apiKey;
+  } catch (err) {
+    console.warn("[twilio-incoming] ElevenLabs key not configured for account", accountId, err);
     return VOICEMAIL_TWIML;
   }
 
@@ -313,7 +322,16 @@ Deno.serve(async (req) => {
         // Prefer ElevenLabs Conversational AI if the persona has a synced agent.
         const elAgentId = await resolveElAgentId(supabase, phoneNumber.pinned_persona_id);
         if (elAgentId) {
-          twiml = await buildElTwiML(elAgentId, from, to, direction, callId, callSid);
+          twiml = await buildElTwiML(
+            supabase,
+            phoneNumber.account_id,
+            elAgentId,
+            from,
+            to,
+            direction,
+            callId,
+            callSid,
+          );
         } else {
           // Fallback: ConversationRelay (Twilio-hosted STT+TTS).
           twiml = buildAiAnswerTwiML(callId, phoneNumber.pinned_persona_id, voiceId, welcomeGreeting);

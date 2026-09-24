@@ -251,7 +251,9 @@ Deno.serve(async (req) => {
     conversation_config: {
       asr: {
         quality: "high",
-        provider: "elevenlabs",
+        // "elevenlabs" (Original ASR) was removed by ElevenLabs — PATCH now
+        // fails with 400 original_asr_removed; Scribe v2 Realtime replaces it.
+        provider: "scribe_realtime",
         keywords: asrKeywords,
         // Phone audio: twilio-incoming connects calls via EL register-call,
         // which requires μ-law 8 kHz on both directions.

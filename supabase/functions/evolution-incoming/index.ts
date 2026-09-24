@@ -69,7 +69,10 @@ Deno.serve(async (req) => {
     return ok();
   }
 
-  const event = String(payload?.event ?? "").toUpperCase();
+  // Evolution v2 sends dotted lowercase names ("messages.upsert"); v1 and our
+  // lists use SCREAMING_SNAKE ("MESSAGES_UPSERT"). Normalize both, otherwise
+  // every inbound message was dropped as an "unknown event".
+  const event = String(payload?.event ?? "").toUpperCase().replace(/[.\-]/g, "_");
   const data = payload?.data ?? payload;
 
   // 1) Drop status/receipts and other non-message events entirely.

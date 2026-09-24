@@ -168,7 +168,10 @@ Deno.serve(async (req) => {
       To: toE164,
       From: phoneNumber.e164,
       Url: webhookUrl,
-      Timeout: String(body.timeoutSeconds ?? 30),
+      // 60s: em celulares no Brasil o aparelho costuma começar a tocar vários
+      // segundos depois da Twilio discar; com 30s a chamada expirava como
+      // no-answer justamente quando a pessoa atendia.
+      Timeout: String(body.timeoutSeconds ?? 60),
       StatusCallback: statusCallbackUrl,
       // Twilio espera um parâmetro StatusCallbackEvent por evento; uma única
       // string com espaços é rejeitada (warning 21626) e os status não chegam.

@@ -44,10 +44,10 @@ async function buildElTwiML(
   accountId: string,
   elAgentId: string,
   from: string,
-  _to: string,
+  to: string,
   direction: string,
   callId: string,
-  _callSid: string,
+  callSid: string,
 ): Promise<string> {
   // The persona's EL agent lives in the workspace's ElevenLabs account (vault
   // key, same as elevenlabs-agent-sync) — the global env key may belong to a
@@ -62,51 +62,56 @@ async function buildElTwiML(
   }
 
   try {
-    // EL's documented flow for Twilio Media Streams:
-    //   1. GET /v1/convai/conversation/get_signed_url?agent_id=X returns a
-    //      pre-authenticated WSS URL (signed, expires in ~30 min).
-    //   2. Embed that URL inside <Connect><Stream url="wss://..."/></Connect>.
-    //   3. Twilio opens the WS; EL authenticates via the signed URL (no
-    //      API key exposed to the client side).
-    const signedRes = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${encodeURIComponent(elAgentId)}`,
-      { headers: { "xi-api-key": apiKey } },
-    );
-    if (!signedRes.ok) {
-      const txt = await signedRes.text().catch(() => "");
+    // EL's "Register Twilio calls" flow for calls on our own Twilio account:
+    // POST /v1/convai/twilio/register-call returns the TwiML that connects
+    // this call to the agent — we hand it to Twilio verbatim.
+    // https://elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/register-call
+    //
+    // Pointing <Connect><Stream> straight at a get_signed_url WSS doesn't
+    // work: that socket speaks EL's client protocol, not Twilio Media
+    // Streams, so EL closed it and the call hung up ~1s after answer.
+    //
+    // Requires the agent's input/output audio format = ulaw_8000
+    // (set by elevenlabs-agent-sync).
+    const isOutbound = direction.startsWith("outbound");
+    const registerRes = await fetch("https://api.elevenlabs.io/v1/convai/twilio/register-call", {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        agent_id: elAgentId,
+        from_number: from,
+        to_number: to,
+        direction: isOutbound ? "outbound" : "inbound",
+        conversation_initiation_client_data: {
+          dynamic_variables: {
+            call_id: callId,
+            call_sid: callSid,
+            // The customer's number: who we dialed (outbound) or who called us.
+            caller_id: isOutbound ? to : from,
+          },
+        },
+      }),
+    });
+    // Documented as a string response: accept raw XML or a JSON-encoded string.
+    let twiml = await registerRes.text().catch(() => "");
+    if (twiml.trimStart().startsWith('"')) {
+      try {
+        twiml = JSON.parse(twiml);
+      } catch {
+        // leave as-is; the <Response check below rejects it
+      }
+    }
+    if (!registerRes.ok || !twiml.includes("<Response")) {
       console.error(
-        `[twilio-incoming] EL get_signed_url failed ${signedRes.status}: ${txt.slice(0, 300)}`,
-      );
-      return VOICEMAIL_TWIML;
-    }
-    const signed = await signedRes.json().catch(() => null);
-    const wssUrl: string | undefined = signed?.signed_url ?? signed?.url;
-    if (!wssUrl) {
-      console.warn(
-        `[twilio-incoming] EL get_signed_url shape unexpected: ${JSON.stringify(signed).slice(0, 200)}`,
+        `[twilio-incoming] EL register-call failed ${registerRes.status}: ${twiml.slice(0, 300)}`,
       );
       return VOICEMAIL_TWIML;
     }
 
-    // Use the signed URL VERBATIM — appending extra params invalidates the
-    // conversation_signature EL embeds in it and the WS closes right after
-    // Twilio connects (Twilio error 31921). Call metadata travels via
-    // <Parameter> tags inside <Stream>, which Twilio forwards on the
-    // "start" event.
     console.log(
-      `[twilio-incoming] EL signed URL obtained agent=${elAgentId} direction=${direction}`,
+      `[twilio-incoming] EL register-call ok agent=${elAgentId} direction=${direction}`,
     );
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="${escapeXml(wssUrl)}">
-      <Parameter name="agent_id" value="${escapeXml(elAgentId)}"/>
-      <Parameter name="call_id" value="${escapeXml(callId)}"/>
-      <Parameter name="caller_id" value="${escapeXml(from)}"/>
-    </Stream>
-  </Connect>
-</Response>`;
+    return twiml;
   } catch (err) {
     console.error("[twilio-incoming] EL buildTwiML exception", err);
     return VOICEMAIL_TWIML;

@@ -24,6 +24,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 import { resolveCredentialsForAccount, ElevenLabsError } from "../_shared/elevenlabs/index.ts";
 import { buildSystemPromptWithGuardrails } from "../_shared/voice/collection-guardrails.ts";
+import { HANDOFF_RULE } from "../_shared/handoff.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -145,7 +146,9 @@ Deno.serve(async (req) => {
   // Injeta header de regras de cobrança automaticamente — usuário pode
   // escrever prompt curto sem variáveis e mesmo assim o agente recebe
   // contexto + tetos + compliance.
-  const systemPrompt = buildSystemPromptWithGuardrails(rawSystemPrompt);
+  // HANDOFF_RULE vai depois do prompt da persona para valer mesmo quando a
+  // persona já traz o template completo (que pula o header de guardrails).
+  const systemPrompt = `${buildSystemPromptWithGuardrails(rawSystemPrompt)}\n\n${HANDOFF_RULE}`;
   const firstMessage = (persona.first_message as string | null) ??
     `Olá, {{debtor_name}}. Aqui é {{agent_name}} da {{company_name}}. Esta chamada pode ser gravada. Posso falar com o senhor, a senhora?`;
 

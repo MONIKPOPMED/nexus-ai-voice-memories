@@ -7,6 +7,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.74.0";
 import { sendText } from "../_shared/evolution/index.ts";
+import { HANDOFF_RULE } from "../_shared/handoff.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -127,7 +128,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (persona?.system_prompt) systemPrompt = persona.system_prompt;
   }
-  systemPrompt = `${systemPrompt}\n\n${SYSTEM_PROMPT_GUARDRAILS}`;
+  systemPrompt = `${systemPrompt}\n\n${SYSTEM_PROMPT_GUARDRAILS}\n\n${HANDOFF_RULE}`;
   // Without this the agent had no access to the debt and answered
   // "não tenho acesso ao valor em aberto" even for imported debtors.
   const debtContext = await loadDebtContext(admin, accountId, conversationId);
@@ -334,7 +335,7 @@ export async function loadDebtContext(
   ];
   const open = (debts ?? []) as Array<{ valor_atual: number | null; vencimento: string | null; descricao: string | null; origem: string | null }>;
   if (open.length === 0) {
-    lines.push("- Não há dívida em aberto registrada para este cliente. Não cite valores; ofereça encaminhar a um atendente humano.");
+    lines.push("- Não há dívida em aberto registrada para este cliente. Não cite valores; ofereça passar o atendimento para a equipe (siga as regras de QUANDO PASSAR O ATENDIMENTO).");
   } else {
     const total = open.reduce((sum, d) => sum + Number(d.valor_atual ?? 0), 0);
     lines.push(`- Dívidas em aberto: ${open.length} (total ${brl(total)})`);
